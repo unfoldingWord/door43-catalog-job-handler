@@ -36,7 +36,7 @@ from app_settings.app_settings import AppSettings
 
 
 
-OUR_NAME = 'Door43_job_handler'
+OUR_NAME = 'Door43_catalog_job_handler'
 KNOWN_RESOURCE_SUBJECTS = ('Generic_Markdown',
             'Greek_Lexicon', 'Hebrew-Aramaic_Lexicon',
             # and 14 from https://api.door43.org/v3/subjects (last checked Mar 2020)
@@ -78,7 +78,7 @@ RESOURCE_SUBJECT_MAP = {
 AppSettings(prefix=prefix)
 if prefix not in ('', 'dev-'):
     AppSettings.logger.critical(f"Unexpected prefix: '{prefix}' — expected '' or 'dev-'")
-door43_stats_prefix = f"door43.{'dev' if prefix else 'prod'}"
+door43_stats_prefix = f"door43-catalog.{'dev' if prefix else 'prod'}"
 job_handler_stats_prefix = f"{door43_stats_prefix}.job-handler"
 webhook_stats_prefix = f'{job_handler_stats_prefix}.webhook'
 prefixed_our_name = prefix + OUR_NAME

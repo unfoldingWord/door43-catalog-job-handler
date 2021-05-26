@@ -38,7 +38,7 @@ from general_tools.file_utils import write_file, remove_tree
 AppSettings(prefix=prefix)
 if prefix not in ('', 'dev-'):
     AppSettings.logger.critical(f"Unexpected prefix: '{prefix}' — expected '' or 'dev-'")
-door43_stats_prefix = f"door43.{'dev' if prefix else 'prod'}"
+door43_stats_prefix = f"door43-catalog.{'dev' if prefix else 'prod'}"
 job_handler_stats_prefix = f"{door43_stats_prefix}.job-handler" # Can't add .callback here coz we also have .total
 callback_stats_prefix = f"{job_handler_stats_prefix}.callback"
 
