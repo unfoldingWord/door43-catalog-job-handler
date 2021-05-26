@@ -36,7 +36,6 @@ coverage.xml
 
 # Editors
 .vscode/
-.idea/
 
 # Flask stuff:
 instance/
