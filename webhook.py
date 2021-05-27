@@ -567,41 +567,21 @@ def check_for_forthcoming_pushes_in_queue(submitted_json_payload:Dict[str,Any], 
 
 # user_projects_invoked_string = 'user-projects.invoked.unknown--unknown'
 project_types_invoked_string = f'{job_handler_stats_prefix}.types.invoked.unknown'
-def handle_page_build(base_temp_dir_name:str, submitted_json_payload:Dict[str,Any], redis_connection,
-                        commit_type:str, commit_id:str, commit_hash:Optional[str],
-                        repo_data_url:str, repo_owner_username:str, repo_name:str,
-                        source_url_base:str, our_identifier:str,
-                        our_queue) -> str:
+def handle_catalog_build(base_temp_dir_name:str, submitted_json_payload:Dict[str, Any], redis_connection,
+                         commit_type:str, commit_id:str, commit_hash:Optional[str],
+                         repo_data_url:str, repo_owner_username:str, repo_name:str,
+                         source_url_base:str, our_identifier:str,
+                         our_queue) -> str:
     """
     It downloads a zip file from the DCS repo to the temp folder and unzips the files,
         and then creates a ResourceContainer (RC) object.
 
-    It creates a manifest_data dictionary,
-        gets a TxManifest from the DB and updates it with the above,
-        or creates a new one if none existed.
+    It checks if the repository exists in the legacy catalog organization,
+        and creates one if necessary.
 
-    It then gets and runs a preprocessor on the files in the temp folder.
-        A preprocessor has a ResourceContainer (RC) and source and output folders.
-        It copies the file(s) from the RC in the source folder, over to the output folder,
-            assembling chunks/chapters if necessary.
+    It then pushes the code as a new commit to the catalog repository.
 
-    The preprocessed files are zipped up in the temp folder
-        and then uploaded to the pre-convert bucket in S3.
-
-    A job dict is now setup and remembered in REDIS
-        so that we can match it when we get a future callback.
-
-    An S3 CDN folder is now named and emptied
-        and a build log dictionary is created and uploaded to it.
-
-    The project.json (in the folder above the CDN one) is also updated, e.g., with new commits.
-
-    The job is now passed to the tX system by means of a
-        POST to the tX webhook (which should hopefully respond with a callback).
-
-    This code is "successful" once the job is submitted—
-        it has no way to determine if it actually gets completed
-        other than if a callback is made.
+    This code is "successful" once the code is committed to the catalog repository.
     """
     global project_types_invoked_string
 
@@ -722,7 +702,7 @@ def handle_page_build(base_temp_dir_name:str, submitted_json_payload:Dict[str,An
         # We no longer use txJob class but just create our own Python dict
         #   This gets saved in Redis so it can be recalled by the callback function
         #       (only a very small subset gets posted to the tX-enqueue-job)
-        AppSettings.logger.debug("Webhook.handle_page_build setting up job dict…")
+        AppSettings.logger.debug("Webhook.handle_catalog_build setting up job dict…")
         pj_job_dict:Dict[str,Any] = {}
         pj_job_dict['job_id'] = our_job_id
         pj_job_dict['identifier'] = our_identifier # So we can recognise this job inside tX Job Handler
@@ -822,7 +802,7 @@ def handle_page_build(base_temp_dir_name:str, submitted_json_payload:Dict[str,An
         #         # upload_to_BDB(f"{repo_owner_username}__{repo_name}__({pusher_username})", preprocessed_zip_file.name)
 
     return job_descriptive_name
-# end of handle_page_build function
+# end of handle_catalog_build function
 
 
 def process_webhook_job(queued_json_payload:Dict[str,Any], redis_connection, our_queue) -> str:
@@ -1048,10 +1028,10 @@ def process_webhook_job(queued_json_payload:Dict[str,Any], redis_connection, our
         if queued_json_payload['DCS_event']=='push' and pusher_username=='Failure' \
         and 'full_name' in pusher_dict and pusher_dict['full_name']=='Push Test':
             deliberateFailureForTesting  # type: ignore
-        job_descriptive_name = handle_page_build(base_temp_dir_name, queued_json_payload, redis_connection,
-                            commit_type, commit_id, commit_hash, repo_data_url,
-                            repo_owner_username, repo_name, source_url_base,
-                            our_identifier, our_queue)
+        job_descriptive_name = handle_catalog_build(base_temp_dir_name, queued_json_payload, redis_connection,
+                                                    commit_type, commit_id, commit_hash, repo_data_url,
+                                                    repo_owner_username, repo_name, source_url_base,
+                                                    our_identifier, our_queue)
     else:
         AppSettings.logger.critical(f"Nothing to process for '{queued_json_payload['DCS_event']}!")
 
