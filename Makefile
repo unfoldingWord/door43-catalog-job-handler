@@ -69,44 +69,44 @@ info:
 runDev: checkEnvVariables
 	# This runs the rq job handler
 	#   which removes and then processes jobs from the local redis dev- queue
-	QUEUE_PREFIX="dev-" rq worker --config rq_settings --name D43_Dev_JobHandler
+	QUEUE_PREFIX="dev-" rq worker --config rq_settings --name D43_Dev_CatalogJobHandler
 
 runDevDebug: checkEnvVariables
 	# This runs the rq job handler
 	#   which removes and then processes jobs from the local redis dev- queue
-	QUEUE_PREFIX="dev-" DEBUG_MODE="true" rq worker --config rq_settings --name D43_Dev_JobHandler
+	QUEUE_PREFIX="dev-" DEBUG_MODE="true" rq worker --config rq_settings --name D43_Dev_CatalogJobHandler
 
 run:
 	# This runs the rq job handler
 	#   which removes and then processes jobs from the production redis queue
 	# TODO: Can the AWS redis url go in here (i.e., is it public)?
-	REDIS_URL="dadada" rq worker --config rq_settings --name D43_JobHandler
+	REDIS_URL="dadada" rq worker --config rq_settings --name D43_CatalogJobHandler
 
 imageDev:
-	docker build --file Dockerfile-developBranch --tag unfoldingword/door43_job_handler:develop .
+	docker build --file Dockerfile-developBranch --tag unfoldingword/door43_catalog_job_handler:develop .
 
 imageMaster:
-	docker build --file Dockerfile-masterBranch --tag unfoldingword/door43_job_handler:master .
+	docker build --file Dockerfile-masterBranch --tag unfoldingword/door43_catalog_job_handler:master .
 
 pushDevImage:
 	# Expects to be already logged into Docker, e.g., docker login -u $(DOCKER_USERNAME)
-	docker push unfoldingword/door43_job_handler:develop
+	docker push unfoldingword/door43_catalog_job_handler:develop
 
 pushMasterImage:
 	# Expects to be already logged into Docker, e.g., docker login -u $(DOCKER_USERNAME)
-	docker push unfoldingword/door43_job_handler:master
+	docker push unfoldingword/door43_catalog_job_handler:master
 
 # NOTE: To test the container (assuming that the confidential environment variables are already set in the current environment) use:
-# 	docker run --env DB_ENDPOINT --env TX_DATABASE_PW --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY --env QUEUE_PREFIX=dev- --env DEBUG_MODE=True --env REDIS_URL=<redis_url> --net="host" --name door43_job_handler --rm door43_job_handler
+# 	docker run --env DB_ENDPOINT --env TX_DATABASE_PW --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY --env QUEUE_PREFIX=dev- --env DEBUG_MODE=True --env REDIS_URL=<redis_url> --net="host" --name door43_catalog_job_handler --rm door43_catalog_job_handler
 
 
 # NOTE: To run the container in production use with the desired values:
-#     	docker run --env DB_ENDPOINT --env TX_DATABASE_PW=<tx_db_pw> --env AWS_ACCESS_KEY_ID=<access_key> --env AWS_SECRET_ACCESS_KEY=<sa_key> --env GRAPHITE_HOSTNAME=<graphite_hostname> --env REDIS_URL=<redis_url> --net="host" --name door43_job_handler --rm door43_job_handler
+#     	docker run --env DB_ENDPOINT --env TX_DATABASE_PW=<tx_db_pw> --env AWS_ACCESS_KEY_ID=<access_key> --env AWS_SECRET_ACCESS_KEY=<sa_key> --env GRAPHITE_HOSTNAME=<graphite_hostname> --env REDIS_URL=<redis_url> --net="host" --name door43_catalog_job_handler --rm door43_catalog_job_handler
 
 connect:
 	# Gives a shell on the running container -- Note: no bash shell available
-	docker exec -it `docker inspect --format="{{.Id}}" door43_job_handler` sh
+	docker exec -it `docker inspect --format="{{.Id}}" door43_catalog_job_handler` sh
 
 connectDev:
 	# Gives a shell on the running container -- Note: no bash shell available
-	docker exec -it `docker inspect --format="{{.Id}}" dev-door43_job_handler` sh
+	docker exec -it `docker inspect --format="{{.Id}}" dev-door43_catalog_job_handler` sh

@@ -9,7 +9,7 @@ WORKDIR /code
 RUN pip3 install --upgrade pip
 RUN pip3 install --requirement requirements.txt
 
-CMD [ "rq", "worker", "--config", "rq_settings", "--name", "D43_JobHandler" ]
+CMD [ "rq", "worker", "--config", "rq_settings", "--name", "D43_CatalogJobHandler" ]
 
 # Define environment variables
 # NOTE: The following environment variables are expected to be set:
@@ -25,8 +25,8 @@ CMD [ "rq", "worker", "--config", "rq_settings", "--name", "D43_JobHandler" ]
 
 
 # NOTE: To build use:
-#           docker build --file Dockerfile-masterBranch --tag unfoldingword/door43_job_handler:master .
+#           docker build --file Dockerfile-masterBranch --tag unfoldingword/door43_catalog_job_handler:master .
 
 
 #       To run in production use with the desired values:
-#           docker run --env DB_ENDPOINT --env TX_DATABASE_PW=<tx_db_pw> --env AWS_ACCESS_KEY_ID=<access_key> --env AWS_SECRET_ACCESS_KEY=<sa_key> --env GRAPHITE_HOSTNAME=<graphite_hostname> --env REDIS_URL=<redis_url> --net="host" --name door43_job_handler --detach --rm door43_job_handler:master
+#           docker run --env DB_ENDPOINT --env TX_DATABASE_PW=<tx_db_pw> --env AWS_ACCESS_KEY_ID=<access_key> --env AWS_SECRET_ACCESS_KEY=<sa_key> --env GRAPHITE_HOSTNAME=<graphite_hostname> --env REDIS_URL=<redis_url> --net="host" --name door43_catalog_job_handler --detach --rm door43_catalog_job_handler:master

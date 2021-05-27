@@ -63,7 +63,7 @@ class AppSettings:
     For all things used for by this app, from DB connection to global handlers
     """
     _resetable_cache_ = {}
-    name = 'Door43-Job-Handler' # Only used for logging and for testing AppSettings resets
+    name = 'Door43-Catalog-Job-Handler' # Only used for logging and for testing AppSettings resets
     dirty = False
 
     # Stage Variables, defaults
