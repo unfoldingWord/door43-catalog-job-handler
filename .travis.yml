@@ -1,6 +1,7 @@
 # .travis.yml
 #
 # Requires the following environment variables to be set in the Travis settings:
+#   GOGS_USER_TOKEN
 #   QUEUE_PREFIX
 #   DB_ENDPOINT
 #   TX_DATABASE_PW
@@ -8,7 +9,7 @@
 #   ASW_SECRET_ACCESS_KEY
 #   DOCKER_USERNAME
 #   DOCKER_PASSWORD
-
+os: linux
 dist: bionic
 language: python
 # See available versions at https://docs.travis-ci.com/user/languages/python/
@@ -24,10 +25,6 @@ jobs:
 
 services:
   - docker
-
-#before_install:
-  #- pip install awscli
-  #- scripts/travis_install_apex.sh
 
 install:
   - pip3 install --upgrade pip
@@ -57,13 +54,13 @@ env:
 
 deploy:
   - provider: script
-    skip_cleanup: true
+    cleanup: true
     script: bash ./deploy.sh develop
     on:
       branch: develop
       condition: $TRAVIS_PYTHON_VERSION == '3.8'
   - provider: script
-    skip_cleanup: true
+    cleanup: true
     script: bash ./deploy.sh master
     on:
       branch: master
