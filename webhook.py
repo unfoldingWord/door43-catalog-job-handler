@@ -31,7 +31,6 @@ from general_tools.file_utils import unzip, add_contents_to_zip, write_file, rem
 from general_tools.url_utils import download_file
 from resource_container.ResourceContainer import RC
 from preprocessors.preprocessors import do_preprocess
-from models.manifest import TxManifest
 from app_settings.app_settings import AppSettings
 
 
@@ -805,7 +804,7 @@ def handle_catalog_build(base_temp_dir_name:str, submitted_json_payload:Dict[str
 # end of handle_catalog_build function
 
 
-def process_webhook_job(queued_json_payload:Dict[str,Any], redis_connection, our_queue) -> str:
+def process_webhook_job(queued_json_payload:Dict[str,Any]) -> str:
     """
     Parameters:
         queued_json_payload is a dict
@@ -916,8 +915,8 @@ def process_webhook_job(queued_json_payload:Dict[str,Any], redis_connection, our
 
         if 'author' in queued_json_payload['release']:
             pusher_dict = queued_json_payload['release']['author']
-        # else:
-            # pusher_dict = {'username': commit['author']['username']}
+        else:
+            pusher_dict = {'username': 'test'} # commit['author']['username']}
         pusher_username = pusher_dict['username']
         our_identifier = f"'{pusher_username}' releasing '{repo_owner_username}/{repo_name}'"
 
@@ -1020,20 +1019,22 @@ def process_webhook_job(queued_json_payload:Dict[str,Any], redis_connection, our
     # user_projects_invoked_string = f'{job_handler_stats_prefix}.user-projects.invoked.{adjusted_repo_owner_username}--{adjusted_repo_name}'
 
 
-    if queued_json_payload['DCS_event'] == 'delete':
-        job_descriptive_name = f'{our_identifier}'
-        handle_branch_delete(base_temp_dir_name, repo_owner_username, repo_name, deleted_branch_name)
-    elif commit_id: # for'push' or 'release' or create—we have a repo to process and a page to build
-        # Here's our programmed failure (for remotely testing failures)
-        if queued_json_payload['DCS_event']=='push' and pusher_username=='Failure' \
-        and 'full_name' in pusher_dict and pusher_dict['full_name']=='Push Test':
-            deliberateFailureForTesting  # type: ignore
-        job_descriptive_name = handle_catalog_build(base_temp_dir_name, queued_json_payload, redis_connection,
-                                                    commit_type, commit_id, commit_hash, repo_data_url,
-                                                    repo_owner_username, repo_name, source_url_base,
-                                                    our_identifier, our_queue)
-    else:
-        AppSettings.logger.critical(f"Nothing to process for '{queued_json_payload['DCS_event']}!")
+    # if queued_json_payload['DCS_event'] == 'delete':
+    #     job_descriptive_name = f'{our_identifier}'
+    #     handle_branch_delete(base_temp_dir_name, repo_owner_username, repo_name, deleted_branch_name)
+    # elif commit_id: # for'push' or 'release' or create—we have a repo to process and a page to build
+    #     # Here's our programmed failure (for remotely testing failures)
+    #     if queued_json_payload['DCS_event']=='push' and pusher_username=='Failure' \
+    #     and 'full_name' in pusher_dict and pusher_dict['full_name']=='Push Test':
+    #         deliberateFailureForTesting  # type: ignore
+    #     job_descriptive_name = handle_catalog_build(base_temp_dir_name, queued_json_payload, redis_connection,
+    #                                                 commit_type, commit_id, commit_hash, repo_data_url,
+    #                                                 repo_owner_username, repo_name, source_url_base,
+    #                                                 our_identifier, our_queue)
+    # else:
+    # TODO: rewrite this to copy repos to Door43-Catalog
+    job_descriptive_name = f'{our_identifier}'
+    AppSettings.logger.critical(f"Nothing to process for '{queued_json_payload['DCS_event']}!")
 
 
     if prefix and debug_mode_flag:

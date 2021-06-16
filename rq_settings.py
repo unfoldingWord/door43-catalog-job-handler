@@ -27,7 +27,7 @@ QUEUES = [webhook_queue_name]  # Callback (i.e., finishing off jobs) is higher p
 
 # Our stuff
 # This is placed here so it fails at start-up if the environment variable is missing
-gogs_user_token = environ['GOGS_USER_TOKEN']
+# gogs_user_token = environ['GOGS_USER_TOKEN']
 
 debug_mode_flag = getenv('DEBUG_MODE', '')
 
