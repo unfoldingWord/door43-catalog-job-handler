@@ -74,7 +74,9 @@ runDev: checkEnvVariables
 runDevDebug: checkEnvVariables
 	# This runs the rq job handler
 	#   which removes and then processes jobs from the local redis dev- queue
-	QUEUE_PREFIX="dev-" DEBUG_MODE="true" rq worker --config rq_settings --name D43_Dev_CatalogJobHandler
+	# Without Docker:
+	# REDIS_URL="redis://127.0.0.1:6379" QUEUE_PREFIX="dev-" DEBUG_MODE="true" rq worker --config rq_settings --name D43_Dev_CatalogJobHandler
+	docker run -e QUEUE_PREFIX="dev-" -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e DB_ENDPOINT -e TX_DATABASE_PW -e DEBUG_MODE=true -e REDIS_URL -e GOGS_USER_TOKEN -v ${PWD}:/scripts -v door43_u:/site/u --name D43_Dev_CatalogJobHandler --rm --network "tx-net" python:3 /bin/bash -c "cd /scripts; pip install -r requirements.txt; rq worker --config rq_settings --name D43_Dev_CatalogJobHandler"
 
 run:
 	# This runs the rq job handler

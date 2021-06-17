@@ -80,20 +80,10 @@ class AppSettings:
     language_stats_table_name = 'language-stats'
     linter_messaging_name = 'linter_complete'
 
-    # DB setup—get the pw from the environment variable
-    db_protocol = 'mysql+pymysql'
-    db_user = 'tx'
-    db_pass = os.environ['TX_DATABASE_PW']
-    db_end_point = os.environ['DB_ENDPOINT']
-    db_port = '3306'
-    db_name = 'tx'
-    db_connection_string = None
-    db_connection_string_params = 'charset=utf8mb4&use_unicode=0'
-
     # Prefixing vars
     # All variables that we change based on production, development and testing environments.
     prefixable_vars = ['name', 'api_url', 'pre_convert_bucket_name', 'cdn_bucket_name', 'door43_bucket_name', 'language_stats_table_name',
-                       'linter_messaging_name', 'db_name', 'db_user']
+                       'linter_messaging_name']
 
     # DB related
     Base = declarative_base()  # To be used in all model classes as the parent class: AppSettings.ModelBase
@@ -217,82 +207,6 @@ class AppSettings:
                                                     aws_secret_access_key=cls.aws_secret_access_key,
                                                     aws_region_name=cls.aws_region_name)
         return cls._pre_convert_s3_handler
-
-
-    @classmethod
-    def db_engine(cls, echo=None):
-        """
-        :param mixed echo:
-        """
-        #print("AppSettings.db_engine(echo={0}) class method running…".format(echo))
-        if echo is None or not isinstance(echo, bool):
-            echo = cls.echo
-        if not cls._db_engine:
-            if not cls.db_connection_string:
-                cls.db_connection_string = cls.construct_connection_string()
-            if not cls.db_connection_string.startswith('sqlite://'):
-                cls._db_engine = create_engine(cls.db_connection_string, echo=echo, poolclass=NullPool)
-            else:
-                cls._db_engine = create_engine(cls.db_connection_string, echo=echo)
-        return cls._db_engine
-
-
-    @classmethod
-    def db(cls, echo=None):
-        """
-        :param mixed echo:
-        """
-        #print("AppSettings.db(echo={0}) class method running…".format(echo))
-        if not cls._db_session:
-            cls._db_session = sessionmaker(bind=cls.db_engine(echo), expire_on_commit=False)()
-            from models.manifest import TxManifest
-            TxManifest.__table__.name = cls.manifest_table_name
-            #from models.job import TxJob
-            #TxJob.__table__.name = cls.job_table_name
-            #from models.module import TxModule
-            #TxModule.__table__.name = cls.module_table_name
-            cls.db_create_tables([TxManifest.__table__])
-        return cls._db_session
-
-
-    @classmethod
-    def db_close(cls):
-        #print("AppSettings.db_close()…")
-        if cls._db_session:
-            cls._db_session.close() # Was close_all() but that's deprecated
-            cls._db_session = None
-        if cls._db_engine:
-            cls._db_engine.dispose()
-            cls._db_engine = None
-
-
-    @classmethod
-    def db_create_tables(cls, tables=None):
-        #print("AppSettings.db_create_tables()…")
-        cls.Base.metadata.create_all(cls.db_engine(), tables=tables)
-
-
-    @classmethod
-    def construct_connection_string(cls):
-        #print("AppSettings.construct_connection_string()…")
-        db_connection_string = cls.db_protocol+'://'
-        if cls.db_user:
-            db_connection_string += cls.db_user
-            if cls.db_pass:
-                db_connection_string += ':'+cls.db_pass
-            if cls.db_end_point:
-                db_connection_string += '@'
-        if cls.db_end_point:
-            db_connection_string += cls.db_end_point
-            if cls.db_port:
-                db_connection_string += ':'+cls.db_port
-        if cls.db_name:
-            db_connection_string += '/'+cls.db_name
-        if cls.db_connection_string_params:
-            db_connection_string += '?'+cls.db_connection_string_params
-        #print( "  Returning", db_connection_string )
-        return db_connection_string
-
 
     @classmethod
     def close_logger(cls):

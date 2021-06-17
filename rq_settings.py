@@ -13,14 +13,12 @@ REDIS_URL = getenv('REDIS_URL', 'redis://127.0.0.1:6379')
 # REDIS_PASSWORD = 'very secret'
 
 # Queues to listen on
-#QUEUES = ['high', 'normal', 'low'] # NOTE: The first queue in the list is processed first
-ENQUEUE_NAME = 'Door43_webhook' # Becomes the queue name -- MUST match enqueueMain.py in door43-enqueue-job
-CALLBACK_SUFFIX = '_callback'
-prefix = getenv('QUEUE_PREFIX', '') # Gets (optional) QUEUE_PREFIX environment variable -- set to 'dev-' for development
-QUEUE_NAME_SUFFIX = '' # Used to switch to a different queue, e.g., '_1'
+# QUEUES = ['high', 'normal', 'low'] # NOTE: The first queue in the list is processed first
+ENQUEUE_NAME = 'Door43_catalog_webhook'  # Becomes the queue name -- MUST match enqueueMain.py in door43-enqueue-job
+prefix = getenv('QUEUE_PREFIX', '')  # Gets (optional) QUEUE_PREFIX environment variable -- set to 'dev-' for development
+QUEUE_NAME_SUFFIX = ''  # Used to switch to a different queue, e.g., '_1'
 webhook_queue_name = prefix + ENQUEUE_NAME + QUEUE_NAME_SUFFIX
-callback_queue_name = prefix + ENQUEUE_NAME + CALLBACK_SUFFIX + QUEUE_NAME_SUFFIX
-QUEUES = [callback_queue_name, webhook_queue_name] # Callback (i.e., finishing off jobs) is higher priority
+QUEUES = [webhook_queue_name]  # Callback (i.e., finishing off jobs) is higher priority
 
 # If you're using Sentry to collect your runtime exceptions, you can use this
 # to configure RQ for it in a single step
@@ -29,7 +27,7 @@ QUEUES = [callback_queue_name, webhook_queue_name] # Callback (i.e., finishing o
 
 # Our stuff
 # This is placed here so it fails at start-up if the environment variable is missing
-gogs_user_token = environ['GOGS_USER_TOKEN']
+# gogs_user_token = environ['GOGS_USER_TOKEN']
 
 debug_mode_flag = getenv('DEBUG_MODE', '')
 
