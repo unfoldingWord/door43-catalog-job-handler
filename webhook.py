@@ -226,17 +226,89 @@ project_types_invoked_string = f'{job_handler_stats_prefix}.types.invoked.unknow
 
 
 def handle_catalog_release(repo_owner_username: str, repo_name: str, commit_id: str, repo_data_url: str):
+    """
+    Handles copying a release to the Door43-Catalog organization
+    """
     # TODO: push the changes from the release to the catalog org
+    #  we'll need to clone/create the Door43-Catalog repo,
+    #  download the release code,
+    #  commit the release code to the repo's main branch,
+    #  then push the commit to DCS
     pass
+
+
+def get_release_info(queued_json_payload: Dict[str, Any]) -> Dict[str, Any] or None:
+    """
+    Extracts the release information from the webhook payload.
+    """
+
+    try:
+        default_branch = queued_json_payload['repository']['default_branch']
+    except KeyError:
+        AppSettings.logger.critical("No default branch specified")
+        default_branch = 'NoDefaultBranch'
+    AppSettings.logger.debug(f"Got default_branch='{default_branch}'")
+
+    # Gather other details from the commit that we will need for the job
+    repo_owner_username = queued_json_payload['repository']['owner']['username']
+    repo_name = queued_json_payload['repository']['name']
+
+    commit_branch = commit_hash = None
+    if queued_json_payload['DCS_event'] == 'release':
+        # Note: payload doesn't include a commit hash
+        try:
+            tag_name = queued_json_payload['release']['tag_name']
+        except (IndexError, AttributeError):
+            AppSettings.logger.critical(f"Could not determine tag name from '{queued_json_payload['release']}'")
+            tag_name = 'UnknownTagName'
+        except KeyError:
+            AppSettings.logger.critical("No tag name specified")
+            tag_name = 'NoTagName'
+        repo_data_url = queued_json_payload['release']['zipball_url']
+        action_message = queued_json_payload['release']['name']
+
+        if 'author' in queued_json_payload['release']:
+            pusher_dict = queued_json_payload['release']['author']
+        else:
+            pusher_dict = queued_json_payload['sender']
+
+        pusher_username = pusher_dict['username']
+    else:
+        AppSettings.logger.critical(f"Can't handle '{queued_json_payload['DCS_event']}' yet!")
+        return None
+
+    if commit_branch == default_branch:
+        commit_type = 'defaultBranch'
+        commit_id = commit_branch
+    elif tag_name:
+        commit_type = 'tag'
+        commit_id = tag_name
+    elif commit_branch not in (None, 'UnknownCommitBranch', 'NoCommitBranch'):
+        commit_type = 'branch'
+        commit_id = commit_branch
+    else:
+        commit_type = 'unknown'
+        commit_id = None
+
+    if commit_id:
+        return {
+            "commit_hash": commit_hash,
+            "commit_id": commit_id,
+            "commit_type": commit_type,
+            "pusher_username": pusher_username,
+            "repo_data_url": repo_data_url,
+            "action_message": action_message,
+            "repo_name": repo_name,
+            "repo_owner_username": repo_owner_username
+        }
+    else:
+        return None
 
 
 def process_webhook_job(queued_json_payload: Dict[str, Any]) -> str:
     """
     Parameters:
         queued_json_payload is a dict
-        redis_connection is a StrictRedis instance
-
-    Sets up a temp folder in the AWS S3 bucket.
 
     It gathers details from the JSON payload.
 
@@ -268,62 +340,29 @@ def process_webhook_job(queued_json_payload: Dict[str, Any]) -> str:
         default_branch = 'NoDefaultBranch'
     AppSettings.logger.debug(f"Got default_branch='{default_branch}'")
 
-    # Gather other details from the commit that we will note for the job(s)
-    repo_owner_username = queued_json_payload['repository']['owner']['username']
-    repo_name = queued_json_payload['repository']['name']
+    release = get_release_info(queued_json_payload)
+    # TRICKY: we are pushing releases to the Door43-Catalog, so we ignore events coming from there.
+    if release and release['repo_owner_username'] != 'Door43-Catalog':
+        AppSettings.logger.debug(f"Got new '{release['commit_type']}' commit_id='{release['commit_id']}' (commit_hash={release['commit_hash']})")
+        AppSettings.logger.debug(f"Got repo_data_url='{release['repo_data_url']}'")
+        our_identifier = f"'{release['pusher_username']}' releasing '{release['repo_owner_username']}/{release['repo_name']}'"
+        AppSettings.logger.info(f"Processing job for {our_identifier} for \"{release['action_message']}\"")
 
-    commit_branch = commit_hash = repo_data_url = tag_name = None
-    if queued_json_payload['DCS_event'] == 'release':
-        # Note: payload doesn't include a commit hash
-        try:
-            tag_name = queued_json_payload['release']['tag_name']
-        except (IndexError, AttributeError):
-            AppSettings.logger.critical(f"Could not determine tag name from '{queued_json_payload['release']}'")
-            tag_name = 'UnknownTagName'
-        except KeyError:
-            AppSettings.logger.critical("No tag name specified")
-            tag_name = 'NoTagName'
-        repo_data_url = queued_json_payload['release']['zipball_url']
-        action_message = queued_json_payload['release']['name']
+        # Seems that statsd 3.3.0 can only handle ASCII chars (not full Unicode)
+        ascii_repo_owner_username_bytes = release['repo_owner_username'].encode('ascii',
+                                                                                'replace')  # Replaces non-ASCII chars with '?'
+        adjusted_repo_owner_username = ascii_repo_owner_username_bytes.decode('utf-8')  # Recode as a str
+        stats_client.incr(f'{webhook_stats_prefix}.users.invoked.{adjusted_repo_owner_username}')
 
-        if 'author' in queued_json_payload['release']:
-            pusher_dict = queued_json_payload['release']['author']
-        else:
-            pusher_dict = {'username': 'test'} # commit['author']['username']}
-        pusher_username = pusher_dict['username']
-        our_identifier = f"'{pusher_username}' releasing '{repo_owner_username}/{repo_name}'"
-    else:
-        AppSettings.logger.critical(f"Can't handle '{queued_json_payload['DCS_event']}' yet!")
-
-    if commit_branch == default_branch:
-        commit_type = 'defaultBranch'
-        commit_id = commit_branch
-    elif tag_name:
-        commit_type = 'tag'
-        commit_id = tag_name
-    elif commit_branch not in (None, 'UnknownCommitBranch', 'NoCommitBranch'):
-        commit_type = 'branch'
-        commit_id = commit_branch
-    else:
-        commit_type = 'unknown'
-        commit_id = None
-    commit_id_string = commit_id if commit_id is None else "'"+commit_id+"'"
-    AppSettings.logger.debug(f"Got new '{commit_type}' commit_id={commit_id_string} (commit_hash={commit_hash})")
-    if repo_data_url:
-        AppSettings.logger.debug(f"Got repo_data_url='{repo_data_url}'")
-
-    AppSettings.logger.info(f"Processing job for {our_identifier} for \"{action_message}\"")
-    # Seems that statsd 3.3.0 can only handle ASCII chars (not full Unicode)
-    ascii_repo_owner_username_bytes = repo_owner_username.encode('ascii', 'replace')  # Replaces non-ASCII chars with '?'
-    adjusted_repo_owner_username = ascii_repo_owner_username_bytes.decode('utf-8')  # Recode as a str
-    stats_client.incr(f'{webhook_stats_prefix}.users.invoked.{adjusted_repo_owner_username}')
-
-    if commit_id:
-        handle_catalog_release(repo_owner_username, repo_name, commit_id, repo_data_url)
+        handle_catalog_release(release['repo_owner_username'], release['repo_name'], release['commit_id'], release['repo_data_url'])
         job_descriptive_name = f'{our_identifier}'
     else:
-        job_descriptive_name = f'{our_identifier}'
-    AppSettings.logger.critical(f"Nothing to process for '{queued_json_payload['DCS_event']}!")
+        # There was no valid event to process
+        AppSettings.logger.critical(f"Nothing to process for '{queued_json_payload['DCS_event']}'!")
+        repo_owner_username = queued_json_payload['repository']['owner']['username']
+        repo_name = queued_json_payload['repository']['name']
+        job_descriptive_name = f"'{repo_owner_username}/{repo_name}'"
+
     AppSettings.logger.info(f"{prefixed_our_name} process_webhook_job() for {job_descriptive_name} has finished.")
     return job_descriptive_name
 # end of process_webhook_job function
