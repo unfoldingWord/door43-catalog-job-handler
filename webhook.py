@@ -235,11 +235,6 @@ def handle_catalog_release(repo_owner_username: str, repo_name: str, commit_id: 
     """
     Handles copying a release to the Door43-Catalog organization
     """
-    # TODO: push the changes from the release to the catalog org
-    #  we'll need to clone/create the Door43-Catalog repo,
-    #  download the release code,
-    #  commit the release code to the repo's main branch,
-    #  then push the commit to DCS
     temp_dir = os.path.join(tempfile.gettempdir(), 'dcs_releases')
     if not os.path.exists(temp_dir):
         try:
@@ -264,9 +259,18 @@ def handle_catalog_release(repo_owner_username: str, repo_name: str, commit_id: 
         os.system(f'git remote add origin {repo_url}')
 
     # copy release into repo
+    # clear existing files
+    os.system(f"find {repo_dir} -mindepth 1 -maxdepth 1 -not -name '.git' -delete")
+    os.system(f'cp -R {os.path.join(release_path, "*")} {repo_dir}')
+    os.chdir(repo_dir)
+    os.system(f'git add .')
+    os.system(f'git commit -m "Release \'{commit_id}\' from {repo_owner_username}/{repo_name}"')
+
+    # push release to catalog
+    AppSettings.logger.info(f'Pushing release to {repo_url}')
+    os.system(f'git push origin master')
 
     # clean up files
-    # TODO: delete the repo directory
     if os.path.exists(temp_dir):
         try:
             shutil.rmtree(temp_dir)
