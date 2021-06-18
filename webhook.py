@@ -383,6 +383,7 @@ def process_webhook_job(queued_json_payload: Dict[str, Any]) -> str:
 
     release = get_release_info(queued_json_payload)
     # TRICKY: we are pushing releases to the Door43-Catalog, so we ignore events coming from there.
+    # TODO: we may want to restrict to releases from unfoldingWord
     if release and release['repo_owner_username'] != 'Door43-Catalog':
         AppSettings.logger.debug(f"Got new '{release['commit_type']}' commit_id='{release['commit_id']}' (commit_hash={release['commit_hash']})")
         AppSettings.logger.debug(f"Got repo_data_url='{release['repo_data_url']}'")
