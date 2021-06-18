@@ -11,6 +11,7 @@ from typing import Dict, Tuple, Any, Optional
 import os
 import tempfile
 import hashlib
+import shutil
 from datetime import datetime
 from time import time, sleep
 import traceback
@@ -234,7 +235,26 @@ def handle_catalog_release(repo_owner_username: str, repo_name: str, commit_id: 
     #  download the release code,
     #  commit the release code to the repo's main branch,
     #  then push the commit to DCS
-    pass
+    temp_dir = os.path.join(tempfile.gettempdir(), 'dcs_releases')
+    if not os.path.exists(temp_dir):
+        try:
+            os.mkdir(temp_dir)
+        except OSError as e:
+            print("Error: %s : %s" % (temp_dir, e.strerror))
+
+    # download release
+    release_path = download_repos_files_into_temp_folder(temp_dir, repo_data_url, repo_name)
+    AppSettings.logger.info(f'Downloaded release to {release_path}')
+
+    # TODO: create/clone repo
+
+    # clean up files
+    # TODO: delete the repo directory
+    if os.path.exists(temp_dir):
+        try:
+            shutil.rmtree(temp_dir)
+        except OSError as e:
+            print("Error: %s : %s" % (temp_dir, e.strerror))
 
 
 def get_release_info(queued_json_payload: Dict[str, Any]) -> Dict[str, Any] or None:
