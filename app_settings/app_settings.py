@@ -3,12 +3,7 @@ import os
 import logging
 import re
 
-from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import NullPool
-
-from aws_tools.s3_handler import S3Handler
 from boto3 import Session
 from watchtower import CloudWatchLogHandler
 
@@ -177,36 +172,6 @@ class AppSettings:
             if hasattr(AppSettings, var):
                 setattr(AppSettings, var, value)
                 cls.dirty = True
-
-    @classmethod
-    def cdn_s3_handler(cls):
-        #print("AppSettings.cdn_s3_handler()…")
-        if not cls._cdn_s3_handler:
-            cls._cdn_s3_handler = S3Handler(bucket_name=cls.cdn_bucket_name,
-                                            aws_access_key_id=cls.aws_access_key_id,
-                                            aws_secret_access_key=cls.aws_secret_access_key,
-                                            aws_region_name=cls.aws_region_name)
-        return cls._cdn_s3_handler
-
-    @classmethod
-    def door43_s3_handler(cls):
-        #print("AppSettings.door43_s3_handler()…")
-        if not cls._door43_s3_handler:
-            cls._door43_s3_handler = S3Handler(bucket_name=cls.door43_bucket_name,
-                                               aws_access_key_id=cls.aws_access_key_id,
-                                               aws_secret_access_key=cls.aws_secret_access_key,
-                                               aws_region_name=cls.aws_region_name)
-        return cls._door43_s3_handler
-
-    @classmethod
-    def pre_convert_s3_handler(cls):
-        #print("AppSettings.pre_convert_s3_handler()…")
-        if not cls._pre_convert_s3_handler:
-            cls._pre_convert_s3_handler = S3Handler(bucket_name=cls.pre_convert_bucket_name,
-                                                    aws_access_key_id=cls.aws_access_key_id,
-                                                    aws_secret_access_key=cls.aws_secret_access_key,
-                                                    aws_region_name=cls.aws_region_name)
-        return cls._pre_convert_s3_handler
 
     @classmethod
     def close_logger(cls):

@@ -52,10 +52,6 @@ class TestAppSettings(unittest.TestCase):
         self.assertEqual(user_from_db.password, '12345')
         AppSettings.db_close()
 
-    @mock_s3
-    def test_s3_handler(self):
-        self.assertIsNotNone(AppSettings.cdn_s3_handler())
-
     # @mock_dynamodb2
     # def test_dynamodb_handler(self):
     #     self.assertIsNotNone(AppSettings.language_stats_db_handler())
