@@ -226,6 +226,11 @@ def check_for_forthcoming_pushes_in_queue(submitted_json_payload:Dict[str,Any], 
 project_types_invoked_string = f'{job_handler_stats_prefix}.types.invoked.unknown'
 
 
+def clone_repo(url: str, dest: str) -> bool:
+    os.system(f'git clone --depth 1 -- {url} {dest}')
+    return os.path.exists(dest) and len(os.listdir(dest)) > 0
+
+
 def handle_catalog_release(repo_owner_username: str, repo_name: str, commit_id: str, repo_data_url: str):
     """
     Handles copying a release to the Door43-Catalog organization
@@ -246,7 +251,19 @@ def handle_catalog_release(repo_owner_username: str, repo_name: str, commit_id: 
     release_path = download_repos_files_into_temp_folder(temp_dir, repo_data_url, repo_name)
     AppSettings.logger.info(f'Downloaded release to {release_path}')
 
-    # TODO: create/clone repo
+    # create/clone repo
+    repo_url = f'https://{AppSettings.gogs_user}:{AppSettings.gogs_user_token}@{AppSettings.gogs_domain_name}/Door43-Catalog/{repo_name}.git'
+    repo_dir = tempfile.mkdtemp(dir=temp_dir, prefix=f'{repo_name}_')
+    cloned = clone_repo(repo_url, repo_dir)
+    if not cloned:
+        AppSettings.logger.info(f'Creating new catalog repo {repo_name}')
+        if not os.path.exists(repo_dir):
+            os.mkdir(repo_dir)
+        os.chdir(repo_dir)
+        os.system('git init')
+        os.system(f'git remote add origin {repo_url}')
+
+    # copy release into repo
 
     # clean up files
     # TODO: delete the repo directory

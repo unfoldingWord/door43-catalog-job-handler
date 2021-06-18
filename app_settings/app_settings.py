@@ -67,7 +67,8 @@ class AppSettings:
     pre_convert_bucket_name = 'tx-webhook-client'
     cdn_bucket_name = 'cdn.door43.org'
     door43_bucket_name = 'door43.org'
-    gogs_user_token = None
+    gogs_user_token = os.environ['GOGS_USER_TOKEN']
+    gogs_user = os.environ['GOGS_USER']
     gogs_url = 'https://git.door43.org'
     gogs_domain_name = 'git.door43.org'
     gogs_ip_address = '127.0.0.1'
