@@ -81,22 +81,12 @@ class AppSettings:
     prefixable_vars = ['name', 'api_url', 'pre_convert_bucket_name', 'cdn_bucket_name', 'door43_bucket_name', 'language_stats_table_name',
                        'linter_messaging_name']
 
-    # DB related
-    Base = declarative_base()  # To be used in all model classes as the parent class: AppSettings.ModelBase
-    auto_setup_db = True
-    manifest_table_name = 'manifests'
-    job_table_name = 'jobs'
-    db_echo = False  # Whether or not to echo DB queries to the debug log. Useful for debugging. Set before setup_db()
-    echo = False
-
     # AWS credentials—get the secret ones from environment variables
     aws_region_name = 'us-west-2'
     aws_access_key_id = os.environ['AWS_ACCESS_KEY_ID']
     aws_secret_access_key = os.environ['AWS_SECRET_ACCESS_KEY']
 
     # Handlers
-    _db_engine = None
-    _db_session = None
     _cdn_s3_handler = None
     _door43_s3_handler = None
     _pre_convert_s3_handler = None
@@ -123,7 +113,6 @@ class AppSettings:
         """
         #print("AppSettings.init(reset={}, {})".format(reset,kwargs))
         if cls.dirty and reset:
-            AppSettings.db_close()
             reset_class(AppSettings)
         if 'prefix' in kwargs and kwargs['prefix'] != cls.prefix:
             cls.__prefix_vars(kwargs['prefix'])

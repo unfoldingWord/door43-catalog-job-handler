@@ -27,14 +27,14 @@ class TestWebhook(TestCase):
     def test_prefix(self):
         self.assertEqual(prefix, AppSettings.prefix)
 
-    @skip("Not currently working")
+    @skip("Testing bad payload is not currently working")
     @patch('webhook.get_current_job', side_effect=my_get_current_job)
     def test_bad_payload(self, mocked_get_current_job_function):
         test_payload = {'something': 'anything',}
         with self.assertRaises(KeyError):
             job(test_payload)
 
-    @skip("Skip this test on Travis-CI coz it fails with AWS test credentials - leave for standalone testing")
+    @skip("Skip testing typical full payload on Travis-CI coz it fails with AWS test credentials - leave for standalone testing")
     @patch('webhook.get_current_job', side_effect=my_get_current_job)
     def test_typical_full_payload(self, mocked_get_current_job_function):
         with open( 'tests/resources/webhook_post.json', 'rt' ) as json_file:
