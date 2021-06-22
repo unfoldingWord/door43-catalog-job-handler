@@ -1,8 +1,8 @@
 master:
 
-.. image:: https://travis-ci.org/unfoldingWord-dev/door43-catalog-job-handler.svg?branch=master
+.. image:: https://travis-ci.com/unfoldingWord-dev/door43-catalog-job-handler.svg?branch=master
     :alt: Build Status
-    :target: https://travis-ci.org/unfoldingWord-dev/door43-catalog-job-handler?branch=master
+    :target: https://travis-ci.com/unfoldingWord-dev/door43-catalog-job-handler?branch=master
 
 .. image:: https://coveralls.io/repos/github/unfoldingWord-dev/door43-catalog-job-handler/badge.svg?branch=master
     :alt: Coveralls
@@ -10,9 +10,9 @@ master:
 
 develop:
 
-.. image:: https://travis-ci.org/unfoldingWord-dev/door43-catalog-job-handler.svg?branch=develop
+.. image:: https://travis-ci.com/unfoldingWord-dev/door43-catalog-job-handler.svg?branch=develop
     :alt: Build Status
-    :target: https://travis-ci.org/unfoldingWord-dev/door43-catalog-job-handler?branch=develop
+    :target: https://travis-ci.com/unfoldingWord-dev/door43-catalog-job-handler?branch=develop
 
 .. image:: https://coveralls.io/repos/github/unfoldingWord-dev/door43-catalog-job-handler/badge.svg?branch=develop
     :alt: Coveralls
