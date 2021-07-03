@@ -63,15 +63,14 @@ class AppSettings:
 
     # Stage Variables, defaults
     prefix = ''
-    api_url = 'https://api.door43.org'
-    pre_convert_bucket_name = 'tx-webhook-client'
-    cdn_bucket_name = 'cdn.door43.org'
-    door43_bucket_name = 'door43.org'
-    gogs_user_token = os.getenv('GOGS_USER_TOKEN', '')
-    gogs_user = os.getenv('GOGS_USER', '')
-    gogs_url = 'https://git.door43.org'
-    gogs_domain_name = 'git.door43.org'
-    gogs_ip_address = '127.0.0.1'
+    api_url = os.getenv('API_URL', 'https://api.door43.org')
+    pre_convert_bucket_name = os.getenv('PRE_CONVERT_BUCKET_NAME', 'tx-webhook-client')
+    cdn_bucket_name = os.getenv('CD_BUCKET_NAME', 'cdn.door43.org')
+    door43_bucket_name = os.getenv('DOOR$#_BUCKET_NAME', 'door43.org')
+    gogs_user_token = os.getenv('GOGS_USER_TOKEN', None)
+    gogs_url = os.getenv('GOGS_URL', 'https://git.door43.org')
+    gogs_domain_name = os.getenv('GOGS_DOMAIN_NAME', 'git.door43.org')
+    gogs_ip_address = os.getenv('GOGS_IP_ADDRESS', '127.0.0.1')
     module_table_name = 'modules'
     language_stats_table_name = 'language-stats'
     linter_messaging_name = 'linter_complete'
