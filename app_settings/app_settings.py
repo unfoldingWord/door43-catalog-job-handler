@@ -67,6 +67,7 @@ class AppSettings:
     pre_convert_bucket_name = os.getenv('PRE_CONVERT_BUCKET_NAME', 'tx-webhook-client')
     cdn_bucket_name = os.getenv('CD_BUCKET_NAME', 'cdn.door43.org')
     door43_bucket_name = os.getenv('DOOR$#_BUCKET_NAME', 'door43.org')
+    gogs_user = os.getenv('GOGS_USER', None)
     gogs_user_token = os.getenv('GOGS_USER_TOKEN', None)
     gogs_url = os.getenv('GOGS_URL', 'https://git.door43.org')
     gogs_domain_name = os.getenv('GOGS_DOMAIN_NAME', 'git.door43.org')
