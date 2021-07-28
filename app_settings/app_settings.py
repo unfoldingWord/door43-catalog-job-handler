@@ -16,7 +16,6 @@ def resetable(cls):
 
 
 def reset_class(cls):
-    # print("reset_class()!!!")
     cache = cls._resetable_cache_  # raises AttributeError on class without decorator
     # Remove any class variables that weren't in the original class as first instantiated
     for key in [key for key in cls.__dict__ if key not in cache and key != '_resetable_cache_']:
@@ -62,34 +61,18 @@ class AppSettings:
 
     # Stage Variables, defaults
     prefix = ''
-    api_url = os.getenv('API_URL', 'https://api.door43.org')
-    pre_convert_bucket_name = os.getenv('PRE_CONVERT_BUCKET_NAME', 'tx-webhook-client')
-    cdn_bucket_name = os.getenv('CD_BUCKET_NAME', 'cdn.door43.org')
-    door43_bucket_name = os.getenv('DOOR_BUCKET_NAME', 'door43.org')
     gitea_user = os.getenv('GITEA_USER', None)
     gitea_password = os.getenv('GITEA_PASSWORD', None)
-    gitea_url = os.getenv('GITEA_URL', 'https://git.door43.org')
     gitea_domain = os.getenv('GITEA_DOMAIN', 'git.door43.org')
-    gitea_ip_address = os.getenv('GITEA_IP_ADDRESS', '127.0.0.1')
-    module_table_name = 'modules'
-    language_stats_table_name = 'language-stats'
-    linter_messaging_name = 'linter_complete'
 
     # Prefixing vars
     # All variables that we change based on production, development and testing environments.
-    prefixable_vars = ['name', 'api_url', 'pre_convert_bucket_name', 'cdn_bucket_name', 'door43_bucket_name',
-                       'language_stats_table_name',
-                       'linter_messaging_name']
+    prefixable_vars = ['name']
 
     # AWS credentials—get the secret ones from environment variables
     aws_region_name = 'us-west-2'
     aws_access_key_id = os.environ['AWS_ACCESS_KEY_ID']
     aws_secret_access_key = os.environ['AWS_SECRET_ACCESS_KEY']
-
-    # Handlers
-    _cdn_s3_handler = None
-    _door43_s3_handler = None
-    _pre_convert_s3_handler = None
 
     # Logger
     logger = logging.getLogger(name)
@@ -101,7 +84,6 @@ class AppSettings:
         Using init to set the class variables with AppSettings(var=value)
         :param kwargs:
         """
-        # print("AppSettings.__init__({})".format(kwargs))
         self.init(**kwargs)
 
     @classmethod
@@ -111,7 +93,6 @@ class AppSettings:
         :param bool reset:
         :param kwargs:
         """
-        # print("AppSettings.init(reset={}, {})".format(reset,kwargs))
         if cls.dirty and reset:
             reset_class(AppSettings)
         if 'prefix' in kwargs and kwargs['prefix'] != cls.prefix:
@@ -140,7 +121,6 @@ class AppSettings:
         Prefixes any variables in AppSettings.prefixable_variables. This includes URLs
         :return:
         """
-        # cls.logger.debug(f"AppSettings.prefix_vars with '{prefix}'")
         url_re = re.compile(r'^(https*://)')  # Current prefix in URLs
         for var in cls.prefixable_vars:
             value = getattr(AppSettings, var)
@@ -148,14 +128,12 @@ class AppSettings:
                 value = re.sub(url_re, r'\1{0}'.format(prefix), value)
             else:
                 value = prefix + value
-            # print("  With prefix now {}={!r}".format(var,value))
             setattr(AppSettings, var, value)
         cls.prefix = prefix
         cls.dirty = True
 
     @classmethod
     def set_vars(cls, **kwargs):
-        # print("AppSettings.set_vars()…")
         # Sets all the given variables for the class, and then marks it as dirty
         for var, value in kwargs.items():
             if hasattr(AppSettings, var):

@@ -11,20 +11,17 @@ import shutil
 import tempfile
 import traceback
 from time import time, sleep
-# Python imports
 from typing import Dict, Tuple, Any, Optional
 from urllib.error import HTTPError
 from zipfile import BadZipFile
 
-# Library (PyPI) imports
 from rq import get_current_job, Queue
-from statsd import StatsClient  # Graphite front-end
+from statsd import StatsClient
 
 from app_settings.app_settings import AppSettings
 from general_tools.file_utils import unzip, empty_folder
 from general_tools.url_utils import download_file
-# Local imports
-from rq_settings import prefix, debug_mode_flag, tx_post_url, webhook_queue_name
+from rq_settings import prefix, debug_mode_flag, webhook_queue_name
 
 OUR_NAME = 'Door43_catalog_job_handler'
 KNOWN_RESOURCE_SUBJECTS = ('Generic_Markdown',
@@ -36,32 +33,6 @@ KNOWN_RESOURCE_SUBJECTS = ('Generic_Markdown',
                            'Open_Bible_Stories', 'OBS_Study_Notes', 'OBS_Study_Questions',
                            'OBS_Translation_Notes', 'OBS_Translation_Questions',
                            )
-# A similar table also exists in tx-enqueue-job:check_posted_tx_payload.py
-# TODO: Will we also need 'book' in this map below???
-RESOURCE_SUBJECT_MAP = {
-    # Maps from rc.resource.identifier and possibly also from rc.resource.type
-    'obs': 'Open_Bible_Stories',
-    'obs-sn': 'OBS_Study_Notes',
-    'obs-sq': 'OBS_Study_Questions',
-    'obs-tn': 'OBS_Translation_Notes',
-    'obs-tq': 'OBS_Translation_Questions',
-    'obs-sg': 'Generic_Markdown',  # See if this works for OBS Study Guide
-
-    'bible': 'Bible', 'reg': 'Bible',
-    'ulb': 'Bible', 'udb': 'Bible',  # These sometimes don't have the correct subject in the manifest
-
-    'ta': 'Translation_Academy',
-    'tn': 'Translation_Notes',
-    'tq': 'Translation_Questions',
-    'tw': 'Translation_Words',
-
-    'ugl': 'Greek_Lexicon',  # Subject for en_ugl is 'Greek English Lexicon' but we want to stay more generic
-    'uhal': 'Hebrew-Aramaic_Lexicon',
-
-    # TODO: Have I got these next two correct???
-    # 'help':'Translation_Academy',
-    # 'man':'Translation_Academy',
-}
 
 AppSettings(prefix=prefix)
 if prefix not in ('', 'dev-'):
@@ -71,15 +42,11 @@ job_handler_stats_prefix = f"{door43_stats_prefix}.job-handler"
 webhook_stats_prefix = f'{job_handler_stats_prefix}.webhook'
 prefixed_our_name = prefix + OUR_NAME
 
-long_prefix = 'develop' if prefix else 'git'
-DOOR43_CALLBACK_URL = f'https://{long_prefix}.door43.org/client/webhook/tx-callback/'
-ADJUSTED_DOOR43_CALLBACK_URL = 'http://127.0.0.1:8080/tx-callback/' \
-    if prefix and debug_mode_flag and ':8090' in tx_post_url \
-    else DOOR43_CALLBACK_URL
-
 # Get the Graphite URL from the environment, otherwise use a local test instance
 graphite_url = os.getenv('GRAPHITE_HOSTNAME', 'localhost')
 stats_client = StatsClient(host=graphite_url, port=8125)
+
+project_types_invoked_string = f'{job_handler_stats_prefix}.types.invoked.unknown'
 
 
 def download_and_unzip_repo(base_temp_dir_name: str, commit_url: str, repo_dir: str) -> None:
@@ -90,6 +57,7 @@ def download_and_unzip_repo(base_temp_dir_name: str, commit_url: str, repo_dir: 
 
     :param commit_url: The URL of the repository to download
     :param repo_dir:   The directory where the downloaded file should be unzipped
+    :param base_temp_dir_name:
     :return: None
     """
     repo_zip_url = commit_url if commit_url.endswith('.zip') \
@@ -146,53 +114,44 @@ def download_and_unzip_repo(base_temp_dir_name: str, commit_url: str, repo_dir: 
             os.remove(repo_zip_file)
 
 
-# end of download_and_unzip_repo function
-
-
 def download_repos_files_into_temp_folder(base_temp_dir_name: str, commit_url: str, repo_name: str) -> str:
     """
     """
-    temp_folderpath = tempfile.mkdtemp(dir=base_temp_dir_name, prefix=f'{repo_name}_')
-    download_and_unzip_repo(base_temp_dir_name, commit_url, temp_folderpath)
-    repo_folderpath = os.path.join(temp_folderpath, repo_name.lower())
-    if os.path.isdir(repo_folderpath):
-        print("Returning1", repo_folderpath)
-        return repo_folderpath
+    temp_folder_path = tempfile.mkdtemp(dir=base_temp_dir_name, prefix=f'{repo_name}_')
+    download_and_unzip_repo(base_temp_dir_name, commit_url, temp_folder_path)
+    repo_folder_path = os.path.join(temp_folder_path, repo_name.lower())
+    if os.path.isdir(repo_folder_path):
+        return repo_folder_path
     # else the folder that we were expecting from inside the zipped repo is not there
     # NOTE: This can happen if the repo has been renamed in DCS -- maybe a Gitea bug???
-    AppSettings.logger.error(f"Unable to find expected '{repo_name.lower()}' folder inside {temp_folderpath}")
-    possibleFolderpaths = []
-    for something in os.listdir(temp_folderpath):
-        somepath = os.path.join(temp_folderpath, something)
-        isDir = os.path.isdir(somepath)
-        isFile = os.path.isfile(somepath)
-        assert isDir or isFile
-        AppSettings.logger.warning(f"  Seems we have: '{something}' {'folder' if isDir else 'file'}")
-        if isDir: possibleFolderpaths.append(somepath)
-    if len(possibleFolderpaths) == 1:
-        AppSettings.logger.warning(f"  Assuming that '{something}' folder (only one found) is the repo folder")
-        print("Returning2", possibleFolderpaths[0])
-        return possibleFolderpaths[0]
+    AppSettings.logger.error(f"Unable to find expected '{repo_name.lower()}' folder inside {temp_folder_path}")
+    possible_folder_paths = []
+    for file_or_dir in os.listdir(temp_folder_path):
+        some_path = os.path.join(temp_folder_path, file_or_dir)
+        is_dir = os.path.isdir(some_path)
+        is_file = os.path.isfile(some_path)
+        assert is_dir or is_file
+        AppSettings.logger.warning(f"  Seems we have: '{file_or_dir}' {'folder' if is_dir else 'file'}")
+        if is_dir:
+            possible_folder_paths.append(some_path)
+    if len(possible_folder_paths) == 1:
+        AppSettings.logger.warning(f"  Assuming that '{possible_folder_paths[0]}' folder (only one found) is the repo folder")
+        return possible_folder_paths[0]
     # else:
-    print("Returning3", temp_folderpath)
-    return temp_folderpath
+    print("Returning3", temp_folder_path)
+    return temp_folder_path
 
 
-# end of download_repos_files_into_temp_folder function
-
-
-def check_for_forthcoming_pushes_in_queue(submitted_json_payload: Dict[str, Any], our_queue) -> Tuple[
-    bool, Optional[str]]:
+def check_for_newer_release(submitted_json_payload: Dict[str, Any], our_queue) -> Tuple[bool, Optional[str]]:
     """
-    TODO: skip if new release
-    If there's already another push queued for the same repo,
+    If there's already another release queued for the same repo,
         let's abort this one.
 
     Returns True if we can safely abort this build
-                        and let a follow-up push trigger the repo rebuild.
+                        and let a follow-up release trigger the repo rebuild.
     """
     len_our_queue = len(our_queue)
-    if submitted_json_payload['DCS_event'] == 'push' \
+    if submitted_json_payload['DCS_event'] == 'release' \
             and len(submitted_json_payload['commits']) == 1 \
             and len_our_queue:  # Have other entries
         AppSettings.logger.info(
@@ -212,13 +171,6 @@ def check_for_forthcoming_pushes_in_queue(submitted_json_payload: Dict[str, Any]
                         AppSettings.logger.info(f"  Not processing build for {job_descriptive_name}")
                         return True, job_descriptive_name
     return False, None
-
-
-# end of check_for_forthcoming_pushes_in_queue function
-
-
-# user_projects_invoked_string = 'user-projects.invoked.unknown--unknown'
-project_types_invoked_string = f'{job_handler_stats_prefix}.types.invoked.unknown'
 
 
 def clone_repo(url: str, dest: str) -> bool:
@@ -406,9 +358,6 @@ def process_webhook_job(queued_json_payload: Dict[str, Any]) -> str:
     return job_descriptive_name
 
 
-# end of process_webhook_job function
-
-
 def job(queued_json_payload: Dict[str, Any]) -> None:
     """
     This function is called by the rq package to process a job in the queue(s).
@@ -432,7 +381,7 @@ def job(queued_json_payload: Dict[str, Any]) -> None:
     our_queue = Queue(webhook_queue_name, connection=current_job.connection)
     len_our_queue = len(our_queue)  # Should normally sit at zero here
 
-    abort_duplicate_flag, job_descriptive_name = check_for_forthcoming_pushes_in_queue(queued_json_payload, our_queue)
+    abort_duplicate_flag, job_descriptive_name = check_for_newer_release(queued_json_payload, our_queue)
     if not abort_duplicate_flag:
         stats_client.gauge(f'"{door43_stats_prefix}.enqueue-job.webhook.queue.length.current', len_our_queue)
         AppSettings.logger.info(
@@ -486,6 +435,3 @@ def job(queued_json_payload: Dict[str, Any]) -> None:
 
     stats_client.incr(f'{webhook_stats_prefix}.jobs.completed')
     AppSettings.close_logger()  # Ensure queued logs are uploaded to AWS CloudWatch
-# end of job function
-
-# end of webhook.py for door43_enqueue_job
