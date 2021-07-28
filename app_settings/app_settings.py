@@ -1,9 +1,8 @@
-import sys
-import os
 import logging
+import os
 import re
+import sys
 
-from sqlalchemy.ext.declarative import declarative_base
 from boto3 import Session
 from watchtower import CloudWatchLogHandler
 
@@ -17,7 +16,7 @@ def resetable(cls):
 
 
 def reset_class(cls):
-    #print("reset_class()!!!")
+    # print("reset_class()!!!")
     cache = cls._resetable_cache_  # raises AttributeError on class without decorator
     # Remove any class variables that weren't in the original class as first instantiated
     for key in [key for key in cls.__dict__ if key not in cache and key != '_resetable_cache_']:
@@ -27,7 +26,7 @@ def reset_class(cls):
         try:
             if key != '_resetable_cache_':
                 setattr(cls, key, value)
-        except AttributeError: # When/Why would we get this?
+        except AttributeError:  # When/Why would we get this?
             pass
     cls.dirty = False
 
@@ -58,7 +57,7 @@ class AppSettings:
     For all things used for by this app, from DB connection to global handlers
     """
     _resetable_cache_ = {}
-    name = 'Door43-Catalog-Job-Handler' # Only used for logging and for testing AppSettings resets
+    name = 'Door43-Catalog-Job-Handler'  # Only used for logging and for testing AppSettings resets
     dirty = False
 
     # Stage Variables, defaults
@@ -67,18 +66,19 @@ class AppSettings:
     pre_convert_bucket_name = 'tx-webhook-client'
     cdn_bucket_name = 'cdn.door43.org'
     door43_bucket_name = 'door43.org'
-    gogs_user_token = os.environ['GOGS_USER_TOKEN']
-    gogs_user = os.environ['GOGS_USER']
-    gogs_url = 'https://git.door43.org'
-    gogs_domain_name = 'git.door43.org'
-    gogs_ip_address = '127.0.0.1'
+    gitea_password = os.environ['GITEA_PASSWORD']
+    gitea_user = os.environ['GITEA_USER']
+    gitea_url = 'https://git.door43.org'
+    gitea_domain = 'git.door43.org'
+    gitea_ip_address = '127.0.0.1'
     module_table_name = 'modules'
     language_stats_table_name = 'language-stats'
     linter_messaging_name = 'linter_complete'
 
     # Prefixing vars
     # All variables that we change based on production, development and testing environments.
-    prefixable_vars = ['name', 'api_url', 'pre_convert_bucket_name', 'cdn_bucket_name', 'door43_bucket_name', 'language_stats_table_name',
+    prefixable_vars = ['name', 'api_url', 'pre_convert_bucket_name', 'cdn_bucket_name', 'door43_bucket_name',
+                       'language_stats_table_name',
                        'linter_messaging_name']
 
     # AWS credentials—get the secret ones from environment variables
@@ -93,15 +93,15 @@ class AppSettings:
 
     # Logger
     logger = logging.getLogger(name)
-    # Delay the rest of the logger setup until we get our prefix
 
+    # Delay the rest of the logger setup until we get our prefix
 
     def __init__(self, **kwargs):
         """
         Using init to set the class variables with AppSettings(var=value)
         :param kwargs:
         """
-        #print("AppSettings.__init__({})".format(kwargs))
+        # print("AppSettings.__init__({})".format(kwargs))
         self.init(**kwargs)
 
     @classmethod
@@ -111,7 +111,7 @@ class AppSettings:
         :param bool reset:
         :param kwargs:
         """
-        #print("AppSettings.init(reset={}, {})".format(reset,kwargs))
+        # print("AppSettings.init(reset={}, {})".format(reset,kwargs))
         if cls.dirty and reset:
             reset_class(AppSettings)
         if 'prefix' in kwargs and kwargs['prefix'] != cls.prefix:
@@ -124,16 +124,16 @@ class AppSettings:
                          f"{'_TEST' if test_mode_flag else ''}" \
                          f"{'_TravisCI' if travis_flag else ''}"
         boto3_session = Session(aws_access_key_id=cls.aws_access_key_id,
-                            aws_secret_access_key=cls.aws_secret_access_key,
-                            region_name=cls.aws_region_name)
+                                aws_secret_access_key=cls.aws_secret_access_key,
+                                region_name=cls.aws_region_name)
         cls.watchtower_log_handler = CloudWatchLogHandler(boto3_session=boto3_session,
-                                                    # use_queues=False, # Because this forked process is quite transient
-                                                    log_group=log_group_name,
-                                                    stream_name=cls.name)
+                                                          # use_queues=False, # Because this forked process is quite transient
+                                                          log_group=log_group_name,
+                                                          stream_name=cls.name)
         setup_logger(cls.logger, cls.watchtower_log_handler,
-                            logging.DEBUG if debug_mode_flag else logging.INFO)
-        cls.logger.debug(f"Logging to AWS CloudWatch group '{log_group_name}' using key '…{cls.aws_access_key_id[-2:]}'.")
-
+                     logging.DEBUG if debug_mode_flag else logging.INFO)
+        cls.logger.debug(
+            f"Logging to AWS CloudWatch group '{log_group_name}' using key '…{cls.aws_access_key_id[-2:]}'.")
 
     @classmethod
     def __prefix_vars(cls, prefix):
@@ -149,14 +149,14 @@ class AppSettings:
                 value = re.sub(url_re, r'\1{0}'.format(prefix), value)
             else:
                 value = prefix + value
-            #print("  With prefix now {}={!r}".format(var,value))
+            # print("  With prefix now {}={!r}".format(var,value))
             setattr(AppSettings, var, value)
         cls.prefix = prefix
         cls.dirty = True
 
     @classmethod
     def set_vars(cls, **kwargs):
-        #print("AppSettings.set_vars()…")
+        # print("AppSettings.set_vars()…")
         # Sets all the given variables for the class, and then marks it as dirty
         for var, value in kwargs.items():
             if hasattr(AppSettings, var):

@@ -1,4 +1,3 @@
-import json
 import os.path
 import shutil
 import tempfile
@@ -73,103 +72,6 @@ class FileUtilsTests(unittest.TestCase):
         with zipfile.ZipFile(zip_file, "r") as zf:
             with zf.open(os.path.basename(self.tmp_file), "r") as f:
                 self.assertEqual(f.read().decode("ascii"), "hello world")
-
-    def test_make_dir(self):
-        self.tmp_dir = tempfile.mkdtemp(prefix='Door43_test_file_utils_')
-        sub_dir = os.path.join(self.tmp_dir, 'subdirectory')
-        file_utils.make_dir(sub_dir)
-        self.assertTrue(os.path.isdir(sub_dir))
-
-    def test_load_json_object(self):
-        d = {
-            "one": 1,
-            "two": 2,
-            "child": {
-                "three": 3
-            }
-        }
-        _, self.tmp_file = tempfile.mkstemp(prefix='Door43_test_')
-        with open(self.tmp_file, "w") as tmpf:
-            json.dump(d, tmpf)
-        self.assertEqual(file_utils.load_json_object(self.tmp_file), d)
-
-    def test_read_file(self):
-        _, self.tmp_file = tempfile.mkstemp(prefix='Door43_test_')
-        with open(self.tmp_file, "w") as tmpf:
-            tmpf.write("hello world")
-        self.assertEqual(file_utils.read_file(self.tmp_file), "hello world")
-
-    def test_write_file(self):
-        _, self.tmp_file = tempfile.mkstemp(prefix='Door43_test_')
-        file_utils.write_file(self.tmp_file, "hello world")
-        with open(self.tmp_file, "r") as f:
-            self.assertEqual(f.read(), "hello world")
-
-    def test_write_file_json(self):
-        """
-        A call to `write_file` where the content is an object (as opposed to a
-        string).
-        """
-        d = {"one": 1, "two": 2, "child": {"numbers": [3, 4, 5]}}
-        _, self.tmp_file = tempfile.mkstemp(prefix='Door43_test_')
-        file_utils.write_file(self.tmp_file, d)
-        with open(self.tmp_file, "r") as f:
-            self.assertEqual(json.load(f), d)
-
-    def test_get_mime_type(self):
-        self.tmp_dir = tempfile.mkdtemp(prefix='Door43_test_file_utils_')
-        tmp_file = os.path.join(self.tmp_dir, 'hello.txt')
-        with open(tmp_file, "w") as f:
-            f.write("hello world")
-        self.assertEqual(file_utils.get_mime_type(tmp_file), "text/plain")
-
-    def test_get_files(self):
-        self.tmp_dir = tempfile.mkdtemp(prefix='Door43_test_file_utils_')
-        _, tmp_file1 = tempfile.mkstemp(dir=self.tmp_dir)
-        _, tmp_file2 = tempfile.mkstemp(dir=self.tmp_dir)
-        tmp_subdir = os.path.join(self.tmp_dir, 'subdir')
-        os.mkdir(tmp_subdir)
-        _, tmp_file3 = tempfile.mkstemp(dir=tmp_subdir, suffix=".md")
-
-        files = file_utils.get_files(self.tmp_dir, relative_paths=False, include_directories=True)
-        self.assertEqual(len(files), 4)
-        self.assertTrue(any(self.paths_equal(tmp_file1, d) for d in files))
-        self.assertTrue(any(self.paths_equal(tmp_file2, d) for d in files))
-        self.assertTrue(any(self.paths_equal(tmp_subdir, d) for d in files))
-        self.assertTrue(any(self.paths_equal(tmp_file3, d) for d in files))
-
-        files = file_utils.get_files(self.tmp_dir, extensions=['.md'])
-        self.assertEqual(len(files), 1)
-
-        files = file_utils.get_files(self.tmp_dir, relative_paths=True, include_directories=True)
-        self.assertEqual(len(files), 4)
-        self.assertTrue(any(self.paths_equal(os.path.relpath(tmp_file1, self.tmp_dir), d)
-                            for d in files))
-        self.assertTrue(any(self.paths_equal(os.path.relpath(tmp_file2, self.tmp_dir), d)
-                            for d in files))
-        self.assertTrue(any(self.paths_equal(os.path.relpath(tmp_subdir, self.tmp_dir), d)
-                            for d in files))
-        self.assertTrue(any(self.paths_equal(os.path.relpath(tmp_file3, self.tmp_dir), d)
-                            for d in files))
-
-    def test_get_subdirs(self):
-        self.tmp_dir = tempfile.mkdtemp(prefix='Door43_test_file_utils_')
-        _, tmp_file1 = tempfile.mkstemp(dir=self.tmp_dir)
-        _, tmp_file2 = tempfile.mkstemp(dir=self.tmp_dir)
-        tmp_subdir = os.path.join(self.tmp_dir, 'subdir')
-        os.mkdir(tmp_subdir)
-        tmp_subsubdir = os.path.join(tmp_subdir, 'subdir')
-        os.mkdir(tmp_subsubdir)
-
-        subdirs = file_utils.get_subdirs(self.tmp_dir, relative_paths=False)
-        self.assertEqual(len(subdirs), 2)
-        self.assertTrue(any(self.paths_equal(tmp_subdir, d) for d in subdirs))
-        self.assertTrue(any(self.paths_equal(tmp_subsubdir, d) for d in subdirs))
-
-        subdirs = file_utils.get_subdirs(self.tmp_dir, relative_paths=True)
-        self.assertEqual(len(subdirs), 2)
-        self.assertTrue(any(self.paths_equal("subdir", d) for d in subdirs))
-        self.assertTrue(any(self.paths_equal("subdir/subdir/", d) for d in subdirs))
 
     @staticmethod
     def paths_equal(path1, path2):

@@ -1,6 +1,5 @@
 import unittest
 
-from sqlalchemy import Column, Integer, String
 from app_settings.app_settings import AppSettings
 
 
@@ -9,7 +8,7 @@ class TestAppSettings(unittest.TestCase):
     def test_init(self):
         gogs_url = 'https://my.gogs.org'
         AppSettings(gogs_url=gogs_url)
-        self.assertEqual(AppSettings.gogs_url, gogs_url)
+        self.assertEqual(AppSettings.gitea_url, gogs_url)
 
     def test_prefix_vars(self):
         AppSettings(prefix='')

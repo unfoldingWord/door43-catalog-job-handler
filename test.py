@@ -1,9 +1,10 @@
 # This is used to test running the webhook job from your dev environment.
 # `python test.py tests/resources/webhook_release.json`
 # If you are missing required environment variables, the script will raise an error
-import tempfile
-import sys
 import json
+import sys
+import tempfile
+
 from webhook import process_webhook_job
 
 if __name__ == '__main__':
