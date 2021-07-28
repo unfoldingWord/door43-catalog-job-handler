@@ -62,15 +62,15 @@ class AppSettings:
 
     # Stage Variables, defaults
     prefix = ''
-    api_url = 'https://api.door43.org'
-    pre_convert_bucket_name = 'tx-webhook-client'
-    cdn_bucket_name = 'cdn.door43.org'
-    door43_bucket_name = 'door43.org'
-    gitea_password = os.environ['GITEA_PASSWORD']
-    gitea_user = os.environ['GITEA_USER']
-    gitea_url = 'https://git.door43.org'
-    gitea_domain = 'git.door43.org'
-    gitea_ip_address = '127.0.0.1'
+    api_url = os.getenv('API_URL', 'https://api.door43.org')
+    pre_convert_bucket_name = os.getenv('PRE_CONVERT_BUCKET_NAME', 'tx-webhook-client')
+    cdn_bucket_name = os.getenv('CD_BUCKET_NAME', 'cdn.door43.org')
+    door43_bucket_name = os.getenv('DOOR_BUCKET_NAME', 'door43.org')
+    gitea_user = os.getenv('GITEA_USER', None)
+    gitea_password = os.getenv('GITEA_PASSWORD', None)
+    gitea_url = os.getenv('GITEA_URL', 'https://git.door43.org')
+    gitea_domain = os.getenv('GITEA_DOMAIN', 'git.door43.org')
+    gitea_ip_address = os.getenv('GITEA_IP_ADDRESS', '127.0.0.1')
     module_table_name = 'modules'
     language_stats_table_name = 'language-stats'
     linter_messaging_name = 'linter_complete'
@@ -127,7 +127,6 @@ class AppSettings:
                                 aws_secret_access_key=cls.aws_secret_access_key,
                                 region_name=cls.aws_region_name)
         cls.watchtower_log_handler = CloudWatchLogHandler(boto3_session=boto3_session,
-                                                          # use_queues=False, # Because this forked process is quite transient
                                                           log_group=log_group_name,
                                                           stream_name=cls.name)
         setup_logger(cls.logger, cls.watchtower_log_handler,
