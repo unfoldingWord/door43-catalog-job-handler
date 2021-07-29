@@ -13,6 +13,7 @@ import traceback
 from time import time, sleep
 from typing import Dict, Tuple, Any, Optional
 from urllib.error import HTTPError
+import urllib.parse
 from zipfile import BadZipFile
 
 from rq import get_current_job, Queue
@@ -162,7 +163,7 @@ def check_for_newer_release(submitted_json_payload: Dict[str, Any], our_queue) -
                 queued_job_args = queued_job.args  # tuple
                 assert len(queued_job_args) == 1
                 queued_job_parameter_dict = queued_job_args[0]
-                if queued_job_parameter_dict['DCS_event'] == 'push' \
+                if queued_job_parameter_dict['DCS_event'] == 'release' \
                         and len(queued_job_parameter_dict['commits']) == 1:
                     queued_url_bits = queued_job_parameter_dict['commits'][0]['url'].split('/')
                     if queued_url_bits[:6] == my_url_bits[:6]:  # commit number at end can be different
@@ -194,7 +195,8 @@ def handle_catalog_release(repo_owner_username: str, repo_name: str, commit_id: 
     AppSettings.logger.info(f'Downloaded release to {release_path}')
 
     # create/clone repo
-    repo_url = f'https://{AppSettings.gitea_user}:{AppSettings.gitea_password}@{AppSettings.gitea_domain}/Door43-Catalog/{repo_name}.git'
+    repo_remote = f'https://{urllib.parse.quote(AppSettings.gitea_user)}:{urllib.parse.quote(AppSettings.gitea_password)}@{AppSettings.gitea_domain}/Door43-Catalog/{repo_name}.git'
+    repo_url = f'https://{AppSettings.gitea_domain}/Door43-Catalog/{repo_name}.git'
     repo_dir = tempfile.mkdtemp(dir=temp_dir, prefix=f'{repo_name}_')
     cloned = clone_repo(repo_url, repo_dir)
     if not cloned:
@@ -203,19 +205,22 @@ def handle_catalog_release(repo_owner_username: str, repo_name: str, commit_id: 
             os.mkdir(repo_dir)
         os.chdir(repo_dir)
         os.system('git init')
-        os.system(f'git remote add origin {repo_url}')
+        os.system('git branch -m master')
+    # add credentials to remote
+    os.chdir(repo_dir)
+    os.system(f'git remote add upstream {repo_remote}')
 
     # copy release into repo
     # clear existing files
     os.system(f"find {repo_dir} -mindepth 1 -maxdepth 1 -not -name '.git' -delete")
     os.system(f'cp -R {os.path.join(release_path, "*")} {repo_dir}')
-    os.chdir(repo_dir)
+
     os.system(f'git add .')
     os.system(f'git commit -m "Release \'{commit_id}\' from {repo_owner_username}/{repo_name}"')
 
     # push release to catalog
-    AppSettings.logger.info(f'Pushing release to {repo_url}')
-    os.system(f'git push origin master')
+    AppSettings.logger.info(f'Pushing release to {repo_remote}')
+    os.system(f'git push upstream master')
 
     # clean up files
     if os.path.exists(temp_dir):

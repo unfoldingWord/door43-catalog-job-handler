@@ -63,7 +63,7 @@ class AppSettings:
     prefix = ''
     gitea_user = os.getenv('GITEA_USER', None)
     gitea_password = os.getenv('GITEA_PASSWORD', None)
-    gitea_domain = os.getenv('GITEA_DOMAIN', 'git.door43.org')
+    gitea_domain = os.getenv('GITEA_DOMAIN', 'develop.door43.org')
 
     # Prefixing vars
     # All variables that we change based on production, development and testing environments.
@@ -71,8 +71,8 @@ class AppSettings:
 
     # AWS credentials—get the secret ones from environment variables
     aws_region_name = 'us-west-2'
-    aws_access_key_id = os.environ['AWS_ACCESS_KEY_ID']
-    aws_secret_access_key = os.environ['AWS_SECRET_ACCESS_KEY']
+    aws_access_key_id = os.getenv('AWS_ACCESS_KEY_ID', None)
+    aws_secret_access_key = os.getenv('AWS_SECRET_ACCESS_KEY', None)
 
     # Logger
     logger = logging.getLogger(name)
