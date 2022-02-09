@@ -6,9 +6,9 @@ from app_settings.app_settings import AppSettings
 class TestAppSettings(unittest.TestCase):
 
     def test_init(self):
-        gitea_domain = 'my.gitea.org'
-        AppSettings(gitea_domain=gitea_domain)
-        self.assertEqual(AppSettings.gitea_domain, gitea_domain)
+        dcs_domain = 'my.dcs.org'
+        AppSettings(dcs_domain=dcs_domain)
+        self.assertEqual(AppSettings.dcs_domain, dcs_domain)
 
     def test_prefix_vars(self):
         AppSettings(prefix='')

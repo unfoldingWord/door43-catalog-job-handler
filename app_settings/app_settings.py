@@ -6,7 +6,7 @@ import sys
 from boto3 import Session
 from watchtower import CloudWatchLogHandler
 
-from rq_settings import debug_mode_flag
+from rq_settings import debug_mode_flag, use_watchtower
 
 
 # TODO: Investigate if this AppSettings (was tx-Manager App) class still needs to be resetable now
@@ -43,7 +43,8 @@ def setup_logger(logger, watchtower_log_handler, level):
     sh = logging.StreamHandler(sys.stdout)
     sh.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s: %(message)s'))
     logger.addHandler(sh)
-    logger.addHandler(watchtower_log_handler)
+    if watchtower_log_handler:
+        logger.addHandler(watchtower_log_handler)
     logger.setLevel(level)
     # Change these loggers to only report errors:
     logging.getLogger('boto3').setLevel(logging.ERROR)
@@ -61,9 +62,9 @@ class AppSettings:
 
     # Stage Variables, defaults
     prefix = ''
-    gitea_user = os.getenv('GITEA_USER', None)
-    gitea_password = os.getenv('GITEA_PASSWORD', None)
-    gitea_domain = os.getenv('GITEA_DOMAIN', 'git.door43.org')
+    dcs_user = os.getenv('DCS_USER', None)
+    dcs_password = os.getenv('DCS_PASSWORD', None)
+    dcs_domain = os.getenv('DCS_DOMAIN', 'git.door43.org')
 
     # Prefixing vars
     # All variables that we change based on production, development and testing environments.
@@ -107,9 +108,12 @@ class AppSettings:
         boto3_session = Session(aws_access_key_id=cls.aws_access_key_id,
                                 aws_secret_access_key=cls.aws_secret_access_key,
                                 region_name=cls.aws_region_name)
-        cls.watchtower_log_handler = CloudWatchLogHandler(boto3_session=boto3_session,
-                                                          log_group=log_group_name,
-                                                          stream_name=cls.name)
+        
+        cls.watchtower_log_handler = None
+        if use_watchtower:
+            cls.watchtower_log_handler = CloudWatchLogHandler(boto3_session=boto3_session,
+                                                              log_group=log_group_name,
+                                                              stream_name=cls.name)
         setup_logger(cls.logger, cls.watchtower_log_handler,
                      logging.DEBUG if debug_mode_flag else logging.INFO)
         cls.logger.debug(

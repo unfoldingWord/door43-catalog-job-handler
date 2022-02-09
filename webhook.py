@@ -54,7 +54,7 @@ def download_and_unzip_repo(base_temp_dir_name: str, commit_url: str, repo_dir: 
     """
     Downloads and unzips a git repository from Github or git.door43.org
         Has a number of tries
-            (in case that Gitea hasn't actually finished building the .zip file yet)
+            (in case that DCS hasn't actually finished building the .zip file yet)
 
     :param commit_url: The URL of the repository to download
     :param repo_dir:   The directory where the downloaded file should be unzipped
@@ -195,8 +195,8 @@ def handle_catalog_release(repo_owner_username: str, repo_name: str, commit_id: 
     AppSettings.logger.info(f'Downloaded release to {release_path}')
 
     # create/clone repo
-    repo_remote = f'https://{urllib.parse.quote(AppSettings.gitea_user)}:{urllib.parse.quote(AppSettings.gitea_password)}@{AppSettings.gitea_domain}/Door43-Catalog/{repo_name}.git'
-    repo_url = f'https://{AppSettings.gitea_domain}/Door43-Catalog/{repo_name}.git'
+    repo_remote = f'https://{urllib.parse.quote(AppSettings.dcs_user)}:{urllib.parse.quote(AppSettings.dcs_password)}@{AppSettings.dcs_domain}/Door43-Catalog/{repo_name}.git'
+    repo_url = f'https://{AppSettings.dcs_domain}/Door43-Catalog/{repo_name}.git'
     repo_dir = tempfile.mkdtemp(dir=temp_dir, prefix=f'{repo_name}_')
     cloned = clone_repo(repo_url, repo_dir)
     if not cloned:

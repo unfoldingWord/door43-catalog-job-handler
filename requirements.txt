@@ -18,8 +18,5 @@ pymysql==0.10.1
 # boto3 is used by aws_tools
 boto3==1.16.1
 
-#gogs_client is used by gogs_tools
-gogs_client==1.0.6
-
 # For templating
 beautifulsoup4==4.9.3
