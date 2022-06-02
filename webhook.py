@@ -10,21 +10,21 @@ import os
 import shutil
 import tempfile
 import traceback
-from time import time, sleep
-from typing import Dict, Tuple, Any, Optional
-from urllib.error import HTTPError
 import urllib.parse
 import logging
 import boto3
 import watchtower
 
+from time import time, sleep
+from typing import Dict, Tuple, Any, Optional
+from urllib.error import HTTPError
 from zipfile import BadZipFile
 from rq import get_current_job, Queue
 from statsd import StatsClient
 from app_settings.app_settings import AppSettings
 from general_tools.file_utils import unzip, empty_folder
 from general_tools.url_utils import download_file
-from rq_settings import prefix, debug_mode_flag, webhook_queue_name
+from rq_settings import ENQUEUE_NAME, prefix, debug_mode_flag, webhook_queue_name
 
 OUR_NAME = 'Door43_catalog_job_handler'
 KNOWN_RESOURCE_SUBJECTS = ('Generic_Markdown',
@@ -390,9 +390,9 @@ def job(queued_json_payload: Dict[str, Any]) -> None:
 
     abort_duplicate_flag, job_descriptive_name = check_for_newer_release(queued_json_payload, our_queue)
     if not abort_duplicate_flag:
-        stats_client.gauge(f'"{door43_stats_prefix}.enqueue-job.webhook.queue.length.current', len_our_queue)
+        stats_client.gauge(f'"{door43_stats_prefix}.enqueue-job.{ENQUEUE_NAME}.queue.length.current', len_our_queue)
         AppSettings.logger.info(
-            f"Updated stats for '{door43_stats_prefix}.enqueue-job.webhook.queue.length.current' to {len_our_queue}")
+            f"Updated stats for '{door43_stats_prefix}.enqueue-job.{ENQUEUE_NAME}.queue.length.current' to {len_our_queue}")
 
         try:
             job_descriptive_name = process_webhook_job(queued_json_payload)
