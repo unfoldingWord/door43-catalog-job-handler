@@ -2,9 +2,8 @@ import logging
 import os
 import re
 import sys
-
-from boto3 import Session
-from watchtower import CloudWatchLogHandler
+import boto3
+import watchtower
 
 from rq_settings import debug_mode_flag, use_watchtower
 
@@ -105,15 +104,17 @@ class AppSettings:
                          f"{'_DEBUG' if debug_mode_flag else ''}" \
                          f"{'_TEST' if test_mode_flag else ''}" \
                          f"{'_TravisCI' if travis_flag else ''}"
-        boto3_session = Session(aws_access_key_id=cls.aws_access_key_id,
-                                aws_secret_access_key=cls.aws_secret_access_key,
-                                region_name=cls.aws_region_name)
+        boto3_client = boto3.client("logs", aws_access_key_id=cls.aws_access_key_id,
+                            aws_secret_access_key=cls.aws_secret_access_key,
+                            region_name=cls.aws_region_name)
         
         cls.watchtower_log_handler = None
         if use_watchtower:
-            cls.watchtower_log_handler = CloudWatchLogHandler(boto3_session=boto3_session,
-                                                              log_group=log_group_name,
-                                                              stream_name=cls.name)
+            cls.watchtower_log_handler = watchtower.CloudWatchLogHandler(boto3_client=boto3_client,
+                                                    use_queues=False,
+                                                    log_group_name=log_group_name,
+                                                    stream_name=cls.name)
+
         setup_logger(cls.logger, cls.watchtower_log_handler,
                      logging.DEBUG if debug_mode_flag else logging.INFO)
         cls.logger.debug(

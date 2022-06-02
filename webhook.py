@@ -14,11 +14,13 @@ from time import time, sleep
 from typing import Dict, Tuple, Any, Optional
 from urllib.error import HTTPError
 import urllib.parse
-from zipfile import BadZipFile
+import logging
+import boto3
+import watchtower
 
+from zipfile import BadZipFile
 from rq import get_current_job, Queue
 from statsd import StatsClient
-
 from app_settings.app_settings import AppSettings
 from general_tools.file_utils import unzip, empty_folder
 from general_tools.url_utils import download_file
@@ -400,9 +402,6 @@ def job(queued_json_payload: Dict[str, Any]) -> None:
                 f"{prefixed_our_name} webhook threw an exception while processing:\n{queued_json_payload}\ngetting exception:\n{e}: {traceback.format_exc()}")
             AppSettings.close_logger()  # Ensure queued logs are uploaded to AWS CloudWatch
             # Now attempt to log it to an additional, separate FAILED log
-            import logging
-            from boto3 import Session
-            from watchtower import CloudWatchLogHandler
             logger2 = logging.getLogger(prefixed_our_name)
             test_mode_flag = os.getenv('TEST_MODE', '')
             travis_flag = os.getenv('TRAVIS_BRANCH', '')
@@ -411,13 +410,13 @@ def job(queued_json_payload: Dict[str, Any]) -> None:
                              f"{'_TEST' if test_mode_flag else ''}" \
                              f"{'_TravisCI' if travis_flag else ''}"
             aws_access_key_id = os.environ['AWS_ACCESS_KEY_ID']
-            boto3_session = Session(aws_access_key_id=aws_access_key_id,
-                                    aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'],
-                                    region_name='us-west-2')
-            failure_watchtower_log_handler = CloudWatchLogHandler(boto3_session=boto3_session,
-                                                                  use_queues=False,
-                                                                  log_group=log_group_name,
-                                                                  stream_name=prefixed_our_name)
+            boto3_client = boto3.client("logs", aws_access_key_id=aws_access_key_id,
+                               aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'],
+                                region_name='us-west-2')
+            failure_watchtower_log_handler = watchtower.CloudWatchLogHandler(boto3_client=boto3_client,
+                                                    use_queues=False,
+                                                    log_group_name=log_group_name,
+                                                    stream_name=prefixed_our_name)
             logger2.addHandler(failure_watchtower_log_handler)
             logger2.setLevel(logging.DEBUG)
             logger2.info(f"Logging to AWS CloudWatch group '{log_group_name}' using key '…{aws_access_key_id[-2:]}'.")
