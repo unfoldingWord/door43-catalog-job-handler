@@ -1,29 +1,24 @@
 import unittest
 
-from sqlalchemy import Column, Integer, String
 from app_settings.app_settings import AppSettings
 
 
 class TestAppSettings(unittest.TestCase):
 
     def test_init(self):
-        gogs_url = 'https://my.gogs.org'
-        AppSettings(gogs_url=gogs_url)
-        self.assertEqual(AppSettings.gogs_url, gogs_url)
+        dcs_domain = 'my.dcs.org'
+        AppSettings(dcs_domain=dcs_domain)
+        self.assertEqual(AppSettings.dcs_domain, dcs_domain)
 
     def test_prefix_vars(self):
         AppSettings(prefix='')
-        self.assertEqual(AppSettings.cdn_bucket_name, 'cdn.door43.org')
-        self.assertEqual(AppSettings.api_url, 'https://api.door43.org')
+        self.assertEqual(AppSettings.name, 'Door43-Catalog-Job-Handler')
         AppSettings(prefix='test-')
-        self.assertEqual(AppSettings.cdn_bucket_name, 'test-cdn.door43.org')
-        self.assertEqual(AppSettings.api_url, 'https://test-api.door43.org')
+        self.assertEqual(AppSettings.name, 'test-Door43-Catalog-Job-Handler')
         AppSettings(prefix='test2-')
-        self.assertEqual(AppSettings.cdn_bucket_name, 'test2-cdn.door43.org')
-        self.assertEqual(AppSettings.api_url, 'https://test2-api.door43.org')
+        self.assertEqual(AppSettings.name, 'test2-Door43-Catalog-Job-Handler')
         AppSettings(prefix='')
-        self.assertEqual(AppSettings.cdn_bucket_name, 'cdn.door43.org')
-        self.assertEqual(AppSettings.api_url, 'https://api.door43.org')
+        self.assertEqual(AppSettings.name, 'Door43-Catalog-Job-Handler')
 
     def test_reset_app(self):
         default_name = AppSettings.name

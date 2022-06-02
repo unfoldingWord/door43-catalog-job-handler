@@ -43,14 +43,16 @@ We recommend you create a Python virtual environment to help manage Python packa
 .. code-block:: bash
 
     cd door43-job-handler
-    python3 -m venv myVenv
+    python3 -m venv venv
 
 Now load that virtual environment and install dependencies:
 
 .. code-block:: bash
 
-    source myVenv/bin/activate
+    source venv/bin/activate
     make dependencies
+
+Additional commands can be found in the Makefile.
 
 Deployment
 ----------
