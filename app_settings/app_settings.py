@@ -77,7 +77,7 @@ class AppSettings:
     # Logger
     logger = logging.getLogger(name)
 
-    # Delay the rest of the logger setup until we get our prefix
+    # Delay the rest of the logger setup until we get our prefixins
 
     def __init__(self, **kwargs):
         """
