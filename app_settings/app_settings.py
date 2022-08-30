@@ -5,7 +5,7 @@ import sys
 import boto3
 import watchtower
 
-from rq_settings import debug_mode_flag
+from rq_settings import debug_mode_flag, use_watchtower
 
 
 # TODO: Investigate if this AppSettings (was tx-Manager App) class still needs to be resetable now
@@ -76,7 +76,7 @@ class AppSettings:
     # Logger
     logger = logging.getLogger(name)
 
-    # Delay the rest of the logger setup until we get our prefix
+    # Delay the rest of the logger setup until we get our prefixins
 
     def __init__(self, **kwargs):
         """
@@ -104,11 +104,16 @@ class AppSettings:
                          f"{'_TEST' if test_mode_flag else ''}" \
                          f"{'_TravisCI' if travis_flag else ''}"
         boto3_client = boto3.client("logs", aws_access_key_id=cls.aws_access_key_id,
-                                aws_secret_access_key=cls.aws_secret_access_key,
-                                region_name=cls.aws_region_name)       
-        cls.watchtower_log_handler = watchtower.CloudWatchLogHandler(boto3_client=boto3_client,
-                                                          log_group_name=log_group_name,
-                                                          stream_name=cls.name)
+                            aws_secret_access_key=cls.aws_secret_access_key,
+                            region_name=cls.aws_region_name)
+        
+        cls.watchtower_log_handler = None
+        if use_watchtower:
+            cls.watchtower_log_handler = watchtower.CloudWatchLogHandler(boto3_client=boto3_client,
+                                                    use_queues=False,
+                                                    log_group_name=log_group_name,
+                                                    stream_name=cls.name)
+
         setup_logger(cls.logger, cls.watchtower_log_handler,
                      logging.DEBUG if debug_mode_flag else logging.INFO)
         cls.logger.debug(

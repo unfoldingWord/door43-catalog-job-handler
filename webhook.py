@@ -10,19 +10,21 @@ import os
 import shutil
 import tempfile
 import traceback
+import urllib.parse
+import logging
+import boto3
+import watchtower
+
 from time import time, sleep
 from typing import Dict, Tuple, Any, Optional
 from urllib.error import HTTPError
-import urllib.parse
 from zipfile import BadZipFile
-
 from rq import get_current_job, Queue
 from statsd import StatsClient
-
 from app_settings.app_settings import AppSettings
 from general_tools.file_utils import unzip, empty_folder
 from general_tools.url_utils import download_file
-from rq_settings import prefix, debug_mode_flag, webhook_queue_name
+from rq_settings import ENQUEUE_NAME, prefix, debug_mode_flag, webhook_queue_name
 
 OUR_NAME = 'Door43_catalog_job_handler'
 KNOWN_RESOURCE_SUBJECTS = ('Generic_Markdown',
@@ -385,8 +387,8 @@ def job(queued_json_payload: Dict[str, Any]) -> None:
 
     abort_duplicate_flag, job_descriptive_name = check_for_newer_release(queued_json_payload, our_queue)
     if not abort_duplicate_flag:
-        stats_client.gauge(f'"{door43_stats_prefix}.enqueue-job.webhook.queue.length.current', len_our_queue)
-        AppSettings.logger.info(f"Updated stats for '{door43_stats_prefix}.enqueue-job.webhook.queue.length.current' to {len_our_queue}")
+        stats_client.gauge(f'"{door43_stats_prefix}.enqueue-job.{ENQUEUE_NAME}.queue.length.current', len_our_queue)
+        AppSettings.logger.info(f"Updated stats for '{door43_stats_prefix}.enqueue-job.{ENQUEUE_NAME}.queue.length.current' to {len_our_queue}")
 
         try:
             job_descriptive_name = process_webhook_job(queued_json_payload)
@@ -395,9 +397,6 @@ def job(queued_json_payload: Dict[str, Any]) -> None:
             AppSettings.logger.critical(f"{prefixed_our_name} webhook threw an exception while processing:\n{queued_json_payload}\ngetting exception:\n{e}: {traceback.format_exc()}")
             AppSettings.close_logger()  # Ensure queued logs are uploaded to AWS CloudWatch
             # Now attempt to log it to an additional, separate FAILED log
-            import logging
-            import boto3
-            import watchtower
             logger2 = logging.getLogger(prefixed_our_name)
             test_mode_flag = os.getenv('TEST_MODE', '')
             travis_flag = os.getenv('TRAVIS_BRANCH', '')
@@ -407,12 +406,12 @@ def job(queued_json_payload: Dict[str, Any]) -> None:
                              f"{'_TravisCI' if travis_flag else ''}"
             aws_access_key_id = os.environ['AWS_ACCESS_KEY_ID']
             boto3_client = boto3.client("logs", aws_access_key_id=aws_access_key_id,
-                                    aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'],
-                                    region_name='us-west-2')
+                               aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'],
+                                region_name='us-west-2')
             failure_watchtower_log_handler = watchtower.CloudWatchLogHandler(boto3_client=boto3_client,
-                                    use_queues=False,
-                                    log_group_name=log_group_name,
-                                    stream_name=prefixed_our_name)
+                                                    use_queues=False,
+                                                    log_group_name=log_group_name,
+                                                    stream_name=prefixed_our_name)
             logger2.addHandler(failure_watchtower_log_handler)
             logger2.setLevel(logging.DEBUG)
             logger2.info(f"Logging to AWS CloudWatch group '{log_group_name}' using key '…{aws_access_key_id[-2:]}'.")
