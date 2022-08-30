@@ -100,8 +100,7 @@ def download_and_unzip_repo(base_temp_dir_name: str, commit_url: str, repo_dir: 
                 AppSettings.logger.error(f"Unable to download file from {repo_zip_url} after {try_number} tries")
                 raise e
         except BadZipFile as e:  # I suspect a race condition within Gitea ???
-            AppSettings.logger.error(
-                f"Try {try_number}: Got bad zip file when downloading repo from {repo_zip_url}: {e}")
+            AppSettings.logger.error(f"Try {try_number}: Got bad zip file when downloading repo from {repo_zip_url}: {e}")
             if try_number < MAX_TRIES:
                 AppSettings.logger.info(f"  Waiting a few seconds before retrying…")
                 sleep(SECONDS_BETWEEN_TRIES)  # Try again after a few seconds
@@ -155,8 +154,7 @@ def check_for_newer_release(submitted_json_payload: Dict[str, Any], our_queue) -
     if submitted_json_payload['DCS_event'] == 'release' \
             and len(submitted_json_payload['commits']) == 1 \
             and len_our_queue:  # Have other entries
-        AppSettings.logger.info(
-            f"Checking for duplicate pushes in {len_our_queue} other queued job entr{'y' if len_our_queue == 1 else 'ies'}…")
+        AppSettings.logger.info(f"Checking for duplicate pushes in {len_our_queue} other queued job entr{'y' if len_our_queue == 1 else 'ies'}…")
         my_url_bits = submitted_json_payload['commits'][0]['url'].split('/')
         for queued_job in our_queue.jobs:
             if queued_job.get_status() == 'queued':
@@ -337,8 +335,7 @@ def process_webhook_job(queued_json_payload: Dict[str, Any]) -> str:
     # TRICKY: we are pushing releases to the Door43-Catalog, so we ignore events coming from there.
     # TODO: we may want to restrict to releases from unfoldingWord
     if release and release['repo_owner_username'] != 'Door43-Catalog':
-        AppSettings.logger.debug(
-            f"Got new '{release['commit_type']}' commit_id='{release['commit_id']}' (commit_hash={release['commit_hash']})")
+        AppSettings.logger.debug(f"Got new '{release['commit_type']}' commit_id='{release['commit_id']}' (commit_hash={release['commit_hash']})")
         AppSettings.logger.debug(f"Got repo_data_url='{release['repo_data_url']}'")
         our_identifier = f"'{release['pusher_username']}' releasing '{release['repo_owner_username']}/{release['repo_name']}'"
         AppSettings.logger.info(f"Processing job for {our_identifier} for \"{release['action_message']}\"")
@@ -389,20 +386,18 @@ def job(queued_json_payload: Dict[str, Any]) -> None:
     abort_duplicate_flag, job_descriptive_name = check_for_newer_release(queued_json_payload, our_queue)
     if not abort_duplicate_flag:
         stats_client.gauge(f'"{door43_stats_prefix}.enqueue-job.webhook.queue.length.current', len_our_queue)
-        AppSettings.logger.info(
-            f"Updated stats for '{door43_stats_prefix}.enqueue-job.webhook.queue.length.current' to {len_our_queue}")
+        AppSettings.logger.info(f"Updated stats for '{door43_stats_prefix}.enqueue-job.webhook.queue.length.current' to {len_our_queue}")
 
         try:
             job_descriptive_name = process_webhook_job(queued_json_payload)
         except Exception as e:
             # Catch most exceptions here so we can log them to CloudWatch
-            AppSettings.logger.critical(
-                f"{prefixed_our_name} webhook threw an exception while processing:\n{queued_json_payload}\ngetting exception:\n{e}: {traceback.format_exc()}")
+            AppSettings.logger.critical(f"{prefixed_our_name} webhook threw an exception while processing:\n{queued_json_payload}\ngetting exception:\n{e}: {traceback.format_exc()}")
             AppSettings.close_logger()  # Ensure queued logs are uploaded to AWS CloudWatch
             # Now attempt to log it to an additional, separate FAILED log
             import logging
-            from boto3 import Session
-            from watchtower import CloudWatchLogHandler
+            import boto3
+            import watchtower
             logger2 = logging.getLogger(prefixed_our_name)
             test_mode_flag = os.getenv('TEST_MODE', '')
             travis_flag = os.getenv('TRAVIS_BRANCH', '')
@@ -411,18 +406,17 @@ def job(queued_json_payload: Dict[str, Any]) -> None:
                              f"{'_TEST' if test_mode_flag else ''}" \
                              f"{'_TravisCI' if travis_flag else ''}"
             aws_access_key_id = os.environ['AWS_ACCESS_KEY_ID']
-            boto3_session = Session(aws_access_key_id=aws_access_key_id,
+            boto3_client = boto3.client("logs", aws_access_key_id=aws_access_key_id,
                                     aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'],
                                     region_name='us-west-2')
-            failure_watchtower_log_handler = CloudWatchLogHandler(boto3_session=boto3_session,
-                                                                  use_queues=False,
-                                                                  log_group=log_group_name,
-                                                                  stream_name=prefixed_our_name)
+            failure_watchtower_log_handler = watchtower.CloudWatchLogHandler(boto3_client=boto3_client,
+                                    use_queues=False,
+                                    log_group_name=log_group_name,
+                                    stream_name=prefixed_our_name)
             logger2.addHandler(failure_watchtower_log_handler)
             logger2.setLevel(logging.DEBUG)
             logger2.info(f"Logging to AWS CloudWatch group '{log_group_name}' using key '…{aws_access_key_id[-2:]}'.")
-            logger2.critical(
-                f"{prefixed_our_name} webhook threw an exception while processing:\n{queued_json_payload}\ngetting exception:\n{e}: {traceback.format_exc()}")
+            logger2.critical(f"{prefixed_our_name} webhook threw an exception while processing:\n{queued_json_payload}\ngetting exception:\n{e}: {traceback.format_exc()}")
             failure_watchtower_log_handler.close()
             # NOTE: following line removed as stats recording used too much disk space
             # stats_client.gauge(user_projects_invoked_string, 1) # Mark as 'failed'
@@ -432,11 +426,9 @@ def job(queued_json_payload: Dict[str, Any]) -> None:
     elapsed_milliseconds = round((time() - start_time) * 1000)
     stats_client.timing(f'{webhook_stats_prefix}.job.duration', elapsed_milliseconds)
     if elapsed_milliseconds < 2000:
-        AppSettings.logger.info(
-            f"{prefixed_our_name} webhook job handling for {job_descriptive_name} completed in {elapsed_milliseconds:,} milliseconds.")
+        AppSettings.logger.info(f"{prefixed_our_name} webhook job handling for {job_descriptive_name} completed in {elapsed_milliseconds:,} milliseconds.")
     else:
-        AppSettings.logger.info(
-            f"{prefixed_our_name} webhook job handling for {job_descriptive_name} completed in {round(time() - start_time)} seconds.")
+        AppSettings.logger.info(f"{prefixed_our_name} webhook job handling for {job_descriptive_name} completed in {round(time() - start_time)} seconds.")
 
     stats_client.incr(f'{webhook_stats_prefix}.jobs.completed')
     AppSettings.close_logger()  # Ensure queued logs are uploaded to AWS CloudWatch
