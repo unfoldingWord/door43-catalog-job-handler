@@ -40,8 +40,9 @@ KNOWN_RESOURCE_SUBJECTS = ('Generic_Markdown',
 AppSettings(prefix=prefix)
 if prefix not in ('', 'dev-'):
     AppSettings.logger.critical(f"Unexpected prefix: '{prefix}' — expected '' or 'dev-'")
-door43_stats_prefix = f"door43-catalog.{'dev' if prefix else 'prod'}"
-job_handler_stats_prefix = f"{door43_stats_prefix}.job-handler"
+
+door43_stats_prefix = f"door43.{'dev' if prefix else 'prod'}"
+job_handler_stats_prefix = f"{door43_stats_prefix}.catalog-job-handler"
 webhook_stats_prefix = f'{job_handler_stats_prefix}.webhook'
 prefixed_our_name = prefix + OUR_NAME
 
