@@ -29,7 +29,7 @@ QUEUES = [callback_queue_name, webhook_queue_name] # Callback (i.e., finishing o
 
 # Our stuff
 # This is placed here so it fails at start-up if the environment variable is missing
-dcs_user_token = environ['DCS_USER_TOKEN']
+# dcs_user_token = environ['DCS_USER_TOKEN']
 
 debug_mode_flag = getenv('DEBUG_MODE', '')
 
