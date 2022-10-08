@@ -42,8 +42,7 @@ def setup_logger(logger, watchtower_log_handler, level):
     sh = logging.StreamHandler(sys.stdout)
     sh.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s: %(message)s'))
     logger.addHandler(sh)
-    if watchtower_log_handler:
-        logger.addHandler(watchtower_log_handler)
+    logger.addHandler(watchtower_log_handler)
     logger.setLevel(level)
     # Change these loggers to only report errors:
     logging.getLogger('boto3').setLevel(logging.ERROR)
