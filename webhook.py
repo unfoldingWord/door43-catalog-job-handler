@@ -26,7 +26,7 @@ from general_tools.file_utils import unzip, empty_folder
 from general_tools.url_utils import download_file
 from rq_settings import ENQUEUE_NAME, prefix, debug_mode_flag, webhook_queue_name
 
-OUR_NAME = 'Door43_catalog_job_handler'
+OUR_NAME = 'door43_catalog_job_handler'
 KNOWN_RESOURCE_SUBJECTS = ('Generic_Markdown',
                            'Greek_Lexicon', 'Hebrew-Aramaic_Lexicon',
                            # and 14 from https://api.door43.org/v3/subjects (last checked Mar 2020)
@@ -42,6 +42,7 @@ if prefix not in ('', 'dev-'):
     AppSettings.logger.critical(f"Unexpected prefix: '{prefix}' — expected '' or 'dev-'")
 
 door43_stats_prefix = f"door43.{'dev' if prefix else 'prod'}"
+enqueue_catalog_job_stats_prefix = f"{door43_stats_prefix}.enqueue-catalog-job"
 job_handler_stats_prefix = f"{door43_stats_prefix}.catalog-job-handler"
 webhook_stats_prefix = f'{job_handler_stats_prefix}.webhook'
 prefixed_our_name = prefix + OUR_NAME
@@ -388,8 +389,8 @@ def job(queued_json_payload: Dict[str, Any]) -> None:
 
     abort_duplicate_flag, job_descriptive_name = check_for_newer_release(queued_json_payload, our_queue)
     if not abort_duplicate_flag:
-        stats_client.gauge(f'"{door43_stats_prefix}.enqueue-job.{ENQUEUE_NAME}.queue.length.current', len_our_queue)
-        AppSettings.logger.info(f"Updated stats for '{door43_stats_prefix}.enqueue-job.{ENQUEUE_NAME}.queue.length.current' to {len_our_queue}")
+        stats_client.gauge(f'"{enqueue_catalog_job_stats_prefix}.queue.length.current', len_our_queue)
+        AppSettings.logger.info(f"Updated stats for '{enqueue_catalog_job_stats_prefix}.queue.length.current' to {len_our_queue}")
 
         try:
             job_descriptive_name = process_webhook_job(queued_json_payload)

@@ -1,11 +1,19 @@
-import logging
-import os
-import re
 import sys
+import os
+import logging
+import re
+import dcs_api_client
 import boto3
-import watchtower
 
-from rq_settings import debug_mode_flag, use_watchtower
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
+
+from aws_tools.s3_handler import S3Handler
+from watchtower import CloudWatchLogHandler
+from aws_tools.s3_handler import S3Handler
+from rq_settings import debug_mode_flag
 
 
 # TODO: Investigate if this AppSettings (was tx-Manager App) class still needs to be resetable now
@@ -15,6 +23,7 @@ def resetable(cls):
 
 
 def reset_class(cls):
+    #print("reset_class()!!!")
     cache = cls._resetable_cache_  # raises AttributeError on class without decorator
     # Remove any class variables that weren't in the original class as first instantiated
     for key in [key for key in cls.__dict__ if key not in cache and key != '_resetable_cache_']:
@@ -24,7 +33,7 @@ def reset_class(cls):
         try:
             if key != '_resetable_cache_':
                 setattr(cls, key, value)
-        except AttributeError:  # When/Why would we get this?
+        except AttributeError: # When/Why would we get this?
             pass
     cls.dirty = False
 
@@ -55,34 +64,69 @@ class AppSettings:
     For all things used for by this app, from DB connection to global handlers
     """
     _resetable_cache_ = {}
-    name = 'Door43-Catalog-Job-Handler'  # Only used for logging and for testing AppSettings resets
+    name = 'Door43-Job-Handler' # Only used for logging and for testing AppSettings resets
     dirty = False
 
     # Stage Variables, defaults
     prefix = ''
-    dcs_user = os.getenv('DCS_USER', None)
-    dcs_password = os.getenv('DCS_PASSWORD', None)
-    dcs_domain = os.getenv('DCS_DOMAIN', 'git.door43.org')
+    api_url = os.getenv('API_URL', 'https://api.door43.org')
+    pre_convert_bucket_name = os.getenv('PRE_CONVERT_BUCKET_NAME', 'tx-webhook-client')
+    cdn_bucket_name = os.getenv('CDN_BUCKET_NAME', 'cdn.door43.org')
+    door43_bucket_name = os.getenv('DOOR43_BUCKET_NAME', 'door43.org')
+    dcs_user_token = os.getenv('DCS_USER_TOKEN', None)
+    dcs_url = os.getenv('DCS_URL', default='https://develop.door43.org' if prefix else 'https://git.door43.org')
+    dcs_domain_name = os.getenv('DCS_DOMAIN_NAME', 'git.door43.org')
+    dcs_ip_address = os.getenv('DCS_IP_ADDRESS', '127.0.0.1')
+    module_table_name = 'modules'
+    language_stats_table_name = 'language-stats'
+    linter_messaging_name = 'linter_complete'
+
+    # DB setup—get the pw from the environment variable
+    db_protocol = 'mysql+pymysql'
+    db_user = 'tx'
+    db_pass = os.environ['TX_DATABASE_PW']
+    db_end_point = os.environ['DB_ENDPOINT']
+    db_port = '3306'
+    db_name = 'tx'
+    db_connection_string = os.getenv('DB_CONNECTION_STRING', None)
+    db_connection_string_params = 'charset=utf8mb4&use_unicode=0'
 
     # Prefixing vars
     # All variables that we change based on production, development and testing environments.
-    prefixable_vars = ['name']
+    prefixable_vars = ['name', 'api_url', 'pre_convert_bucket_name', 'cdn_bucket_name', 'door43_bucket_name', 'language_stats_table_name',
+                       'linter_messaging_name', 'db_name', 'db_user']
+
+    # DB related
+    Base = declarative_base()  # To be used in all model classes as the parent class: AppSettings.ModelBase
+    auto_setup_db = True
+    manifest_table_name = 'manifests'
+    job_table_name = 'jobs'
+    db_echo = False  # Whether or not to echo DB queries to the debug log. Useful for debugging. Set before setup_db()
+    echo = False
 
     # AWS credentials—get the secret ones from environment variables
     aws_region_name = 'us-west-2'
-    aws_access_key_id = os.getenv('AWS_ACCESS_KEY_ID', None)
-    aws_secret_access_key = os.getenv('AWS_SECRET_ACCESS_KEY', None)
+    aws_access_key_id = os.environ['AWS_ACCESS_KEY_ID']
+    aws_secret_access_key = os.environ['AWS_SECRET_ACCESS_KEY']
+
+    # Handlers
+    _db_engine = None
+    _db_session = None
+    _cdn_s3_handler = None
+    _door43_s3_handler = None
+    _pre_convert_s3_handler = None
 
     # Logger
     logger = logging.getLogger(name)
+    # Delay the rest of the logger setup until we get our prefix
 
-    # Delay the rest of the logger setup until we get our prefixins
 
     def __init__(self, **kwargs):
         """
         Using init to set the class variables with AppSettings(var=value)
         :param kwargs:
         """
+        #print("AppSettings.__init__({})".format(kwargs))
         self.init(**kwargs)
 
     @classmethod
@@ -92,7 +136,9 @@ class AppSettings:
         :param bool reset:
         :param kwargs:
         """
+        #print("AppSettings.init(reset={}, {})".format(reset,kwargs))
         if cls.dirty and reset:
+            AppSettings.db_close()
             reset_class(AppSettings)
         if 'prefix' in kwargs and kwargs['prefix'] != cls.prefix:
             cls.__prefix_vars(kwargs['prefix'])
@@ -106,18 +152,18 @@ class AppSettings:
         boto3_client = boto3.client("logs", aws_access_key_id=cls.aws_access_key_id,
                             aws_secret_access_key=cls.aws_secret_access_key,
                             region_name=cls.aws_region_name)
-        
-        cls.watchtower_log_handler = None
-        if use_watchtower:
-            cls.watchtower_log_handler = watchtower.CloudWatchLogHandler(boto3_client=boto3_client,
-                                                    use_queues=False,
-                                                    log_group_name=log_group_name,
-                                                    stream_name=cls.name)
+        cls.watchtower_log_handler = CloudWatchLogHandler(boto3_client=boto3_client,
+                                                        log_group_name=log_group_name,
+                                                        stream_name=cls.name)
 
         setup_logger(cls.logger, cls.watchtower_log_handler,
-                     logging.DEBUG if debug_mode_flag else logging.INFO)
-        cls.logger.debug(
-            f"Logging to AWS CloudWatch group '{log_group_name}' using key '…{cls.aws_access_key_id[-2:]}'.")
+                            logging.DEBUG if debug_mode_flag else logging.INFO)
+        cls.logger.debug(f"Logging to AWS CloudWatch group '{log_group_name}' using key '…{cls.aws_access_key_id[-2:]}'.")
+
+        api_config = dcs_api_client.Configuration()
+        api_config.host = f"{cls.dcs_url}/api/v1"
+        cls.repo_api = dcs_api_client.RepositoryApi(dcs_api_client.ApiClient(api_config))
+
 
     @classmethod
     def __prefix_vars(cls, prefix):
@@ -125,6 +171,7 @@ class AppSettings:
         Prefixes any variables in AppSettings.prefixable_variables. This includes URLs
         :return:
         """
+        # cls.logger.debug(f"AppSettings.prefix_vars with '{prefix}'")
         url_re = re.compile(r'^(https*://)')  # Current prefix in URLs
         for var in cls.prefixable_vars:
             value = getattr(AppSettings, var)
@@ -132,17 +179,125 @@ class AppSettings:
                 value = re.sub(url_re, r'\1{0}'.format(prefix), value)
             else:
                 value = prefix + value
+            #print("  With prefix now {}={!r}".format(var,value))
             setattr(AppSettings, var, value)
         cls.prefix = prefix
         cls.dirty = True
 
     @classmethod
     def set_vars(cls, **kwargs):
+        #print("AppSettings.set_vars()…")
         # Sets all the given variables for the class, and then marks it as dirty
         for var, value in kwargs.items():
             if hasattr(AppSettings, var):
                 setattr(AppSettings, var, value)
                 cls.dirty = True
+
+    @classmethod
+    def cdn_s3_handler(cls):
+        #print("AppSettings.cdn_s3_handler()…")
+        if not cls._cdn_s3_handler:
+            cls._cdn_s3_handler = S3Handler(bucket_name=cls.cdn_bucket_name,
+                                            aws_access_key_id=cls.aws_access_key_id,
+                                            aws_secret_access_key=cls.aws_secret_access_key,
+                                            aws_region_name=cls.aws_region_name)
+        return cls._cdn_s3_handler
+
+    @classmethod
+    def door43_s3_handler(cls):
+        #print("AppSettings.door43_s3_handler()…")
+        if not cls._door43_s3_handler:
+            cls._door43_s3_handler = S3Handler(bucket_name=cls.door43_bucket_name,
+                                               aws_access_key_id=cls.aws_access_key_id,
+                                               aws_secret_access_key=cls.aws_secret_access_key,
+                                               aws_region_name=cls.aws_region_name)
+        return cls._door43_s3_handler
+
+    @classmethod
+    def pre_convert_s3_handler(cls):
+        #print("AppSettings.pre_convert_s3_handler()…")
+        if not cls._pre_convert_s3_handler:
+            cls._pre_convert_s3_handler = S3Handler(bucket_name=cls.pre_convert_bucket_name,
+                                                    aws_access_key_id=cls.aws_access_key_id,
+                                                    aws_secret_access_key=cls.aws_secret_access_key,
+                                                    aws_region_name=cls.aws_region_name)
+        return cls._pre_convert_s3_handler
+
+
+    @classmethod
+    def db_engine(cls, echo=None):
+        """
+        :param mixed echo:
+        """
+        #print("AppSettings.db_engine(echo={0}) class method running…".format(echo))
+        if echo is None or not isinstance(echo, bool):
+            echo = cls.echo
+        if not cls._db_engine:
+            if not cls.db_connection_string:
+                cls.db_connection_string = cls.construct_connection_string()
+            if not cls.db_connection_string.startswith('sqlite://'):
+                cls._db_engine = create_engine(cls.db_connection_string, echo=echo, poolclass=NullPool)
+            else:
+                cls._db_engine = create_engine(cls.db_connection_string, echo=echo)
+        return cls._db_engine
+
+
+    @classmethod
+    def db(cls, echo=None):
+        """
+        :param mixed echo:
+        """
+        #print("AppSettings.db(echo={0}) class method running…".format(echo))
+        if not cls._db_session:
+            cls._db_session = sessionmaker(bind=cls.db_engine(echo), expire_on_commit=False)()
+            from models.manifest import TxManifest
+            TxManifest.__table__.name = cls.manifest_table_name
+            #from models.job import TxJob
+            #TxJob.__table__.name = cls.job_table_name
+            #from models.module import TxModule
+            #TxModule.__table__.name = cls.module_table_name
+            cls.db_create_tables([TxManifest.__table__])
+        return cls._db_session
+
+
+    @classmethod
+    def db_close(cls):
+        #print("AppSettings.db_close()…")
+        if cls._db_session:
+            cls._db_session.close() # Was close_all() but that's deprecated
+            cls._db_session = None
+        if cls._db_engine:
+            cls._db_engine.dispose()
+            cls._db_engine = None
+
+
+    @classmethod
+    def db_create_tables(cls, tables=None):
+        #print("AppSettings.db_create_tables()…")
+        cls.Base.metadata.create_all(cls.db_engine(), tables=tables)
+
+
+    @classmethod
+    def construct_connection_string(cls):
+        #print("AppSettings.construct_connection_string()…")
+        db_connection_string = cls.db_protocol+'://'
+        if cls.db_user:
+            db_connection_string += cls.db_user
+            if cls.db_pass:
+                db_connection_string += ':'+cls.db_pass
+            if cls.db_end_point:
+                db_connection_string += '@'
+        if cls.db_end_point:
+            db_connection_string += cls.db_end_point
+            if cls.db_port:
+                db_connection_string += ':'+cls.db_port
+        if cls.db_name:
+            db_connection_string += '/'+cls.db_name
+        if cls.db_connection_string_params:
+            db_connection_string += '?'+cls.db_connection_string_params
+        #print( "  Returning", db_connection_string )
+        return db_connection_string
+
 
     @classmethod
     def close_logger(cls):
