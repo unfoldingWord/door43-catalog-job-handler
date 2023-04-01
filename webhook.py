@@ -155,7 +155,7 @@ def check_for_newer_release(submitted_json_payload: Dict[str, Any], our_queue) -
     """
     len_our_queue = len(our_queue)
     if submitted_json_payload['DCS_event'] == 'release' \
-            and len(submitted_json_payload['commits']) == 1 \
+            and 'commits' in submitted_json_payload and len(submitted_json_payload['commits']) == 1 \
             and len_our_queue:  # Have other entries
         AppSettings.logger.info(f"Checking for duplicate pushes in {len_our_queue} other queued job entr{'y' if len_our_queue == 1 else 'ies'}…")
         my_url_bits = submitted_json_payload['commits'][0]['url'].split('/')
@@ -165,7 +165,7 @@ def check_for_newer_release(submitted_json_payload: Dict[str, Any], our_queue) -
                 assert len(queued_job_args) == 1
                 queued_job_parameter_dict = queued_job_args[0]
                 if queued_job_parameter_dict['DCS_event'] == 'release' \
-                        and len(queued_job_parameter_dict['commits']) == 1:
+                        and 'commits' in queued_job_parameter_dict and len(queued_job_parameter_dict['commits']) == 1:
                     queued_url_bits = queued_job_parameter_dict['commits'][0]['url'].split('/')
                     if queued_url_bits[:6] == my_url_bits[:6]:  # commit number at end can be different
                         AppSettings.logger.info("Found duplicate job later in queue—aborting this one!")
