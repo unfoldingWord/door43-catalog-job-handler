@@ -69,6 +69,9 @@ class AppSettings:
 
     # Stage Variables, defaults
     prefix = ''
+    dcs_user = os.getenv('DCS_USER', None)
+    dcs_password = os.getenv('DCS_PASSWORD', None)
+    dcs_domain = os.getenv('DCS_DOMAIN', 'git.door43.org')
     api_url = os.getenv('API_URL', 'https://api.door43.org')
     pre_convert_bucket_name = os.getenv('PRE_CONVERT_BUCKET_NAME', 'tx-webhook-client')
     cdn_bucket_name = os.getenv('CDN_BUCKET_NAME', 'cdn.door43.org')
